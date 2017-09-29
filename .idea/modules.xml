@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="ProjectModuleManager">
+    <modules>
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/nqfpgrowth.iml" filepath="$PROJECT_DIR$/.idea/modules/nqfpgrowth.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/nqfpgrowth-build.iml" filepath="$PROJECT_DIR$/.idea/modules/nqfpgrowth-build.iml" />
+    </modules>
+  </component>
+</project>

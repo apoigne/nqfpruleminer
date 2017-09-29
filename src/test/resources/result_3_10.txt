@@ -1,0 +1,51 @@
+Dataset: List(data/connect-4.0.csv)
+
+Target:  attribute: Class, values: win
+Quality function: Piatetsky
+Number of items: 126
+
+TargetValueDistribution: win= 44473  others: 23084
+
+The 10 best subgroups:
+
+1. a1 == o
+Quality = 0.0328262436001167
+Size = 20324, Generality = 0.3008422517281703, p = 0.23258216886439678
+
+2. f6 == b & a1 == o
+Quality = 0.032815385019498294
+Size = 20316, Generality = 0.30072383320751367, p = 0.23257531010041346
+
+3. g6 == b & a1 == o
+Quality = 0.032810327118150455
+Size = 20315, Generality = 0.30070903089243156, p = 0.2325867585527935
+
+4. e6 == b & a1 == o
+Quality = 0.032805640605764026
+Size = 20317, Generality = 0.3007386355225957, p = 0.23261308264015357
+
+5. f6 == b & g6 == b & a1 == o
+Quality = 0.03279946853753206
+Size = 20307, Generality = 0.3005906123717749, p = 0.23257989855714778
+
+6. e6 == b & f6 == b & a1 == o
+Quality = 0.03279478202514561
+Size = 20309, Generality = 0.3006202170019391, p = 0.23260623368949726
+
+7. e6 == b & g6 == b & a1 == o
+Quality = 0.032789724123797784
+Size = 20308, Generality = 0.30060541468685703, p = 0.23261768761079377
+
+8. c6 == b & a1 == o
+Quality = 0.0327274022076669
+Size = 20243, Generality = 0.2996432642065219, p = 0.23247542360322088
+
+9. f6 == b & c6 == b & a1 == o
+Quality = 0.03271654362704847
+Size = 20235, Generality = 0.2995248456858653, p = 0.23246849518161602
+
+10. g6 == b & c6 == b & a1 == o
+Quality = 0.03271148572570065
+Size = 20234, Generality = 0.2995100433707832, p = 0.2324799841850351
+
+Considered 23287 subgroups of depth <= 3 out of 333501 with maxDepth 3, i.e. 6.982587758357546 % 
