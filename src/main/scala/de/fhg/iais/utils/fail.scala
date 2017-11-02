@@ -1,6 +1,4 @@
-package common.utils
-
-;
+package de.fhg.iais.utils
 
 object fail {
   def apply(condition: Boolean, msg: String): Unit =

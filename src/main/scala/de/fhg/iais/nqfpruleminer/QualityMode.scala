@@ -1,6 +1,4 @@
-package nqfpruleminer
-
-import nqfpruleminer.Distribution
+package de.fhg.iais.nqfpruleminer
 
 sealed trait Strategy
 case object Prune extends Strategy

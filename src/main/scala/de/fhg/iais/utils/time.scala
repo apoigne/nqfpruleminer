@@ -1,4 +1,4 @@
-package common.utils
+package  de.fhg.iais.utils
 
 object time {
   private var theTime = System.currentTimeMillis()

@@ -1,4 +1,4 @@
-package nqfpruleminer
+package de.fhg.iais.nqfpruleminer
 
 class Distribution(val numberOfTargetGroups : Int) {
   private val distr = Array.fill(numberOfTargetGroups: Int)(0: Int)
@@ -15,12 +15,6 @@ class Distribution(val numberOfTargetGroups : Int) {
     require(numberOfTargetGroups == that.numberOfTargetGroups)
     for (i <- 0 until numberOfTargetGroups) distr(i) = that(i)
   }
-
-//  def copy() : Distribution = {
-//    val newDistr = new Distribution(numberOfTargetGroups)
-//    newDistr set this
-//    newDistr
-//  }
 
   def sum : Int = distr.sum
 

@@ -7,6 +7,7 @@
         <entry key="xml" value="XML" />
       </map>
     </option>
+    <option name="projectViewHighlighting" value="true" />
     <option name="showArgumentsToByNameParams" value="true" />
   </component>
 </project>

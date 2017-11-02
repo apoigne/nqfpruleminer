@@ -1,4 +1,4 @@
-package nqfpruleminer
+package de.fhg.iais.nqfpruleminer
 
 case class FPnode(item: Int, parent: Option[FPnode])(implicit numberOfTargetGroups : Int) {
 
