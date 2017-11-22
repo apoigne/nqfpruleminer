@@ -1,54 +1,22 @@
-import com.sun.tools.javac.util.Assert
-import org.joda.time.DateTime
+import scalikejdbc._
 
-import scala.util.Random
-//case class X(x: Int, y: Int)
-//val x = Map((1, 0) -> 5, (1, 1) -> 7, (0, 3) -> 3)
-//
-//val y = x.groupBy(_._1._1)
-//
-//y.mapValues(_.map { case ((_, value), number) => value -> number})
-//
-//y.mapValues(y => y.values.sum)
-//
-import org.joda.time.DateTime
-import org.joda.time.format.DateTimeFormat
-import org.joda.time.format.DateTimeFormatter
+Class.forName("com.mysql.jdbc.Driver")
+ConnectionPool.singleton("jdbc:mysql://localhost:3306/connect4", "root", "poignepoigne")
+implicit val session = AutoSession
 
-val dt = new DateTime
-val fmt = DateTimeFormat.forPattern("d - M - y")
+val x = List("a1", "a2", "a3", "a4")
 
-fmt.print(dt)
-//
-//val dl =
-//  List(0.8406203020861771, 0.9893101459583835, 0.4897963362477239,
-//    0.6445524097255106, 0.47714423601203115, 0.5188175861327828,
-//    0.268762117326681, 0.21608042531390348, 0.06330832071150128,
-//    0.8406203020861771, 0.9893101459583835, 0.4897963362477239,
-//    0.6445524097255106, 0.47714423601203115, 0.5188175861327828,
-//    0.8531897023472996, 0.7679048318901919, 0.21590352502954913,
-//    0.0022959119736535305, 0.6834104310431929, 0.33625348176589487,
-//    0.8531897023472996, 0.7679048318901919, 0.21590352502954913,
-//    0.0022959119736535305, 0.6834104310431929, 0.33625348176589487,
-//    0.7238944588177526, 0.07778839744307853, 0.7571600227798514,
-//    0.6445524097255106, 0.47714423601203115, 0.5188175861327828,
-//    0.8531897023472996, 0.7679048318901919, 0.21590352502954913,
-//    0.0022959119736535305, 0.6834104310431929, 0.33625348176589487,
-//    0.8531897023472996, 0.7679048318901919, 0.21590352502954913,
-//    0.0022959119736535305, 0.6834104310431929, 0.33625348176589487,
-//    0.7238944588177526, 0.07778839744307853, 0.7571600227798514,
-//    0.49474891130555054, 0.9626699296312952, Double.NaN)
-//
-//dl.filter(!_.isNaN).min
-//
-//val labels = dl.map(_ => if (rand.nextDouble() <= 0.5) 0 else 1)
-//
-//val geölabelt = dl.zip(labels)
+val xxx = "connect4"
 
-//val dm = dl.groupBy(identity).mapValues(_.length).toList
-//
-//for ( (x,_) <- dm if !x.isNaN) yield x
+case class Record(values: List[String])
+object Record extends SQLSyntaxSupport[Record] {
+  override val tableName = xxx
+  def apply(e: ResultName[Record])(rs: WrappedResultSet): Record =
+    Record(x.map(n => rs.string(e.column(n))))
+}
 
-//List[Double](1,2,3).take(0)
+val r = Record.syntax("r")
+val records = withSQL {select.from(Record as r)}.map(Record(r.resultName)(_)).list.apply()
 
+records.head.values.head == "b"
 

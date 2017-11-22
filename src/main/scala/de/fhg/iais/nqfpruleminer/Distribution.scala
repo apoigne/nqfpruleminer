@@ -6,6 +6,8 @@ class Distribution(val numberOfTargetGroups : Int) {
   def reset() : Unit =
     for (i <- 0 until numberOfTargetGroups) distr(i) = 0
 
+  def add(index : Int) : Unit = distr(index) += 1
+
   def add(that: Distribution) : Unit = {
     require(numberOfTargetGroups == that.numberOfTargetGroups)
     for (i <- 0 until numberOfTargetGroups) distr(i) += that(i)

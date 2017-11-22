@@ -2,9 +2,9 @@ package de.fhg.iais.nqfpruleminer.actors
 
 import akka.actor.{Actor, ActorLogging, Props}
 import akka.util.Timeout
-import better.files._
-import com.sun.tools.javac.jvm.Items
+import de.fhg.iais.nqfpruleminer.io.{WriteToJson, WriteToText}
 import de.fhg.iais.nqfpruleminer.{Context, Distribution, Item}
+import de.fhg.iais.utils.fail
 
 import scala.concurrent.ExecutionContextExecutor
 import scala.concurrent.duration._
@@ -19,11 +19,11 @@ object BestSubGroups {
   case class MinQ(value: Double)
   case class GenOutput(rootDistribution: Distribution, subgroupCounter: Int)
 
-  def props(numberOfItems : Int, decode : IndexedSeq[Item])(implicit ctx : Context) =
+  def props(numberOfItems: Int, decode: IndexedSeq[Item])(implicit ctx: Context) =
     Props(classOf[BestSubGroups], numberOfItems, decode, ctx)
 }
 
-class BestSubGroups(numberOfItems : Int, decode : IndexedSeq[Item])(implicit ctx : Context) extends Actor with ActorLogging {
+class BestSubGroups(numberOfItems: Int, decode: IndexedSeq[Item])(implicit ctx: Context) extends Actor with ActorLogging {
 
   import BestSubGroups._
 
@@ -85,6 +85,7 @@ class BestSubGroups(numberOfItems : Int, decode : IndexedSeq[Item])(implicit ctx
         case (g1 :: _, g2 :: _groups2) => isExtensionOf(groups1, _groups2)
         case _ => groups1 == groups2
       }
+
     isExtensionOf(groups1, groups1)
   }
 
@@ -180,19 +181,12 @@ class BestSubGroups(numberOfItems : Int, decode : IndexedSeq[Item])(implicit ctx
 //      group
 //  }
 
-//  private val outputFile = nqfpruleminer.outputFile
-//  private val targetGroups =  nqfpruleminer.targetGroups
-//  private val numberOfTargetGroups =  nqfpruleminer.numberOfTargetGroups
-//  private val dataFiles = nqfpruleminer.dataFiles
-//  private val targetName =  nqfpruleminer.targetName
-//  private val qualityMode = nqfpruleminer.qualityMode
-
   private def genOutput(rootDistribution: Distribution, subgroupCounter: Int): Unit = {
-    ctx.outputFile.toFile.overwrite("")
-    if (kBestSubGroups.nonEmpty)
-      ctx.outputFile.toFile.append(subgroupsToString(rootDistribution, subgroupCounter))
-    else
-      ctx.outputFile.toFile.append("Error: no best subgroups generated.")
+    ctx.outputFormat match {
+      case "txt" => new WriteToText(numberOfItems, kBestSubGroups, decode, rootDistribution, subgroupCounter).write()
+      case "json" => new WriteToJson(numberOfItems, kBestSubGroups, decode, rootDistribution, subgroupCounter).write()
+      case x => fail(s"Output format $x not supported.")
+    }
     context.system.terminate() onComplete {
       case Success(_) =>
         System.exit(0)
@@ -200,50 +194,4 @@ class BestSubGroups(numberOfItems : Int, decode : IndexedSeq[Item])(implicit ctx
         log.info(e.getMessage)
     }
   }
-  def subgroupsToString(rootDistribution: Distribution, subgroupCounter: Long): String = {
-    val targetValues = ctx.targetGroups.map(_.toString).reduce(_ + "," + _)
-    val numberOfNodes = binomialSum(numberOfItems.toLong, ctx.lengthOfSubgroups)
-
-    s"Dataset: ${ctx.dataFiles}\n\n" +
-      s"Target:  attribute: ${ctx.targetName}, values: $targetValues\n" +
-      s"Quality function: ${ctx.qualityMode}\n" +
-      s"Number of items: $numberOfItems\n\n" +
-      s"TargetValueDistribution: " +
-      (ctx.qualityMode match {
-        case "Piatetsky" =>
-          s"$targetValues= ${rootDistribution(1)} "
-        case "Binomial" =>
-          s"$targetValues= ${rootDistribution(1)} "
-        case _ =>
-          targetValues.zipWithIndex.map { case (v, i) => s"   $v: ${rootDistribution(i + 1)}" }.reduce(_ + "," + _)
-      }) +
-      s" others: ${rootDistribution(0)}\n\n" +
-      s"The ${ctx.numberOfBestSubgroups} best subgroups:\n" +
-      kBestSubGroups.reverse.zipWithIndex.map {
-        case (sg: SubGroup, index: Int) =>
-          s"\n${index + 1}. " +
-            sg.group.sorted.map(decode).map(_.toString).reduce(_ + " & " + _) +
-            s"\nQuality = ${sg.quality}" +
-            s"\nSize = ${sg.distr.sum}, Generality = ${sg.generality}, " +
-            (ctx.qualityMode match {
-              case "Piatetsky" =>
-                val n = sg.distr.sum.toDouble
-                s"p = ${sg.distr(0).toDouble / n}"
-              case "Binomial" =>
-                val n = sg.distr.sum.toDouble
-                s"p = ${sg.distr(0).toDouble / n}"
-              case _ =>
-                val n = sg.distr.sum.toDouble
-                (0 until ctx.numberOfTargetGroups).map(i => s"p($i) = ${sg.distr(i).toDouble / n}").reduce(_ + ", " + _)
-            }) + "\n"
-      }.reduce(_ + _) +
-      s"\nConsidered $subgroupCounter subgroups of depth <= ${ctx.lengthOfSubgroups} out of $numberOfNodes with maxDepth ${ctx.lengthOfSubgroups}," +
-      s" i.e. ${subgroupCounter.toDouble / numberOfNodes.toDouble * 100.0} % \n"
-  }
-
-  def binomialCoefficient(n: Long, k: Int): Long =
-    (1 to k).foldLeft(1L)((x, i) => (x * (n + 1 - i)) / i)
-
-  def binomialSum(n: Long, k: Int): Long =
-    if (k > 0) binomialCoefficient(n, k) + binomialSum(n, k - 1) else 0
 }
