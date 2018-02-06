@@ -2,14 +2,14 @@ package de.fhg.iais.nqfpruleminer.io
 
 import better.files._
 import de.fhg.iais.nqfpruleminer.actors.BestSubGroups.SubGroup
-import de.fhg.iais.nqfpruleminer.{Context, Distribution, Item}
+import de.fhg.iais.nqfpruleminer.{Coding, Context, Distribution}
 import de.fhg.iais.utils.binomialSum
 import spray.json.DefaultJsonProtocol._
 import spray.json._
 
 class WriteToJson(numberOfItems: Int,
                   kBestSubGroups: List[SubGroup],
-                  decode: IndexedSeq[Item],
+                  decode: Coding.DecodingTable,
                   rootDistribution: Distribution,
                   subgroupCounter: Long
                  )(implicit ctx: Context) {
@@ -24,7 +24,7 @@ class WriteToJson(numberOfItems: Int,
 
       val output =
         Map(
-          "target" -> Map("attribute" -> ctx.targetName.toJson, "values" -> ctx.targetGroups.toJson).toJson,
+          "target" -> Map("feature" -> ctx.targetName.toJson, "values" -> ctx.targetGroups.toJson).toJson,
           "quality_function" -> ctx.qualityMode.toJson,
           "number_of_items" -> numberOfItems.toJson,
           "target_value_distribution" ->
@@ -72,5 +72,4 @@ class WriteToJson(numberOfItems: Int,
       outputFile.toFile.append(output)
     }
   }
-
 }

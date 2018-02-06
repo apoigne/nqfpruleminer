@@ -3,180 +3,282 @@ package de.fhg.iais.nqfpruleminer
 import better.files._
 import com.opencsv.CSVParser
 import com.typesafe.config.{Config, ConfigFactory}
-import de.fhg.iais.nqfpruleminer.DataType.GROUP
+import de.fhg.iais.nqfpruleminer.BinningType.NOBINNING
 import de.fhg.iais.nqfpruleminer.io.Provider
-import de.fhg.iais.utils.fail
+import de.fhg.iais.utils.{TimeFrame, fail, tryFail, tryWithDefault}
+import org.joda.time.DateTime
 import org.joda.time.format.{DateTimeFormat, DateTimeFormatter}
 
 import scala.collection.JavaConverters._
+import scala.util.{Failure, Success, Try}
+
+object AggregationOp extends Enumeration {
+  val Count, Sum, Max, Min, Mean = Value
+
+  def apply(op: String): AggregationOp.Value =
+    op match {
+      case "count" => Count
+      case "sum" => Sum
+      case "max" => Max
+      case "min" => Min
+      case "mean" => Mean
+      case x => fail(s"Aggregation operator $x is not supported."); null
+    }
+}
 
 class Context(configFile: String, val numberOfBestSubgroups: Int, val lengthOfSubgroups: Int) {
-  private val config = ConfigFactory.parseFile(configFile.toFile.toJava)
+  fail(configFile.toFile.exists(), s"Configuration file ${configFile.toFile.path} does not exist")
+  private val config = tryFail(ConfigFactory.parseFile(configFile.toFile.toJava))
 
-  val minimalQuality: Double = try {config getDouble "minimalQuality"} catch {case e: Throwable => fail(e.getLocalizedMessage); 0.0}
-  val minP: Double = try {config getDouble "minProbability"} catch {case e: Throwable => fail(e.getLocalizedMessage); 0.0}
-  val minG: Double = try {config getDouble "minGenerality"} catch {case e: Throwable => fail(e.getLocalizedMessage); 0.0}
-  val computeClosureOfSubgroups: Boolean = try {config getBoolean "computeClosureOfSubgroups"} catch {case e: Throwable => fail(e.getLocalizedMessage); false}
-  val refineSubgroups: Boolean = try {config getBoolean "refineSubgroups"} catch {case e: Throwable => fail(e.getLocalizedMessage); false}
-  val qualityMode: String = try {config getString "qualityfunction"} catch {case e: Throwable => fail(e.getLocalizedMessage); "Piatetsky"}
-
-  val outputFile: String = try {config getString "outputFile"} catch {case e: Throwable => fail(e.getLocalizedMessage); "result"}
-  val outputFormat: String = try {config getString "outputFormat"} catch {case e: Throwable => fail(e.getLocalizedMessage); "txt"}
-  val dateTimeFormat: String = try {config getString "dateTimeFormat"} catch {case e: Throwable => "yyyy-MM-dd"}
+  val outputFile: String = tryFail(config getString "outputFile")
+  val outputFormat: String = tryWithDefault(config getString "outputFormat", "txt")
+  val dateTimeFormat: String = tryWithDefault(config getString "dateTimeFormat", "yyyy-MM-dd HH:mm:ss")
   val dateTimeFormatter: DateTimeFormatter = DateTimeFormat.forPattern(dateTimeFormat)
+
+  def parseDateTime(value: String): DateTime =
+    Try(dateTimeFormatter.parseDateTime(value)) match {
+      case Success(v) => v
+      case Failure(e) => fail(s"Parsing datetime failed due to incorrect format: ${e.getMessage}"); null
+    }
+
+  val providerData: Provider.Data = {
+    val providerTyp = tryFail(config getString "provider")
+    providerTyp match {
+      case "csvReader" =>
+        val separator: Char = tryWithDefault(config.getString("csvReader.separator").head, CSVParser.DEFAULT_SEPARATOR)
+        val quoteCharacter: Char = tryWithDefault(config.getString("csvReader.quoteCharacter").head, CSVParser.DEFAULT_QUOTE_CHARACTER)
+        val escapeCharacter: Char = tryWithDefault(config.getString("csvReader.escapeCharacter").head, CSVParser.DEFAULT_ESCAPE_CHARACTER)
+        val dataFilesHaveHeader: Boolean = tryFail(config getBoolean "csvReader.dataFilesHaveHeader")
+        val dataFile: String = tryFail(config getString "csvReader.dataFile")
+        Provider.Csv(dataFile, dataFilesHaveHeader, separator, quoteCharacter, escapeCharacter)
+      case "mySQLDB" =>
+        val host: String = tryFail(config getString "mySQLDB.host")
+        val port: Int = tryFail(config getInt "mySQLDB.port")
+        val db: String = tryFail(config getString "mySQLDB.database")
+        val table: String = tryFail(config getString "mySQLDB.table")
+        val user: String = tryFail(config getString "mySQLDB.user")
+        val password: String = tryFail(config getString "mySQLDB.password")
+        Provider.MySql(host, port, db, table, user, password)
+    }
+  }
 
   fail(outputFile.toFile.path.getParent.toFile.exists(), s"Path of output file ${outputFile.toFile.path.getParent} does not exíst.")
   fail(outputFormat == "txt" || outputFormat == "json", s"Output format $outputFormat not supported.")
 
+  val minimalQuality: Double = tryWithDefault(config getDouble "minimalQuality", 0.0)
+  val minP: Double = tryWithDefault(config getDouble "minProbability", 0.0)
+  val minG: Double = tryWithDefault(config getDouble "minGenerality", 0.0)
+  val qualityMode: String = tryWithDefault(config getString "qualityfunction", "Piatetsky")
+
   fail(qualityMode == "Piatetsky" || qualityMode == "Binomial" || qualityMode == "Split" ||
     qualityMode == "Pearson" || qualityMode == "Gini", s"Quality mode $qualityMode is not supported.")
 
+  val maxNumberOfItems: Int = tryWithDefault(config getInt "maxNumberofItems", Int.MaxValue)
+
+  // 'features' comprise the list of all features that are required
+  private def genBinnigType(binning: Config) = {
+    val mode = binning.getString("mode")
+    mode match {
+      case "NoBinning" => BinningType.NOBINNING
+      case "Entropy" => BinningType.ENTROPY(binning.getInt("bins"))
+      case "Interval" => BinningType.INTERVAL(binning.getDoubleList("intervals").asScala.toList.map(_.toDouble))
+      case "EqualWidth" => BinningType.EQUALWIDTH(binning.getInt("bins"))
+      case "EqualFrequency" => BinningType.EQUALFREQUENCY(binning.getInt("bins"))
+      case x => fail(s"Wrong binning method $x."); null
+    }
+  }
+
+  private val features: List[Feature] =
+    tryFail {
+      val features =
+        config.getConfigList("features").asScala.toList.map(
+          feature => {
+            val name = feature.getString("name")
+            val typ = SimpleType(feature.getString("typ"))
+            if (typ == SimpleType.NUMERIC) {
+              val binning = tryWithDefault(Some(feature.getConfig("binning")), None)
+              binning match {
+                case None => Feature(name, typ)
+                case Some(_binning) => Feature(name, genBinnigType(_binning))
+              }
+            } else {
+              Feature(name, typ)
+            }
+          }
+        )
+      val featureNames = features.map(_.name)
+      fail(featureNames.lengthCompare(featureNames.distinct.length) == 0, "There are double occurrences of feature names")
+      features
+    }
+
   // target generation
-  val targetName: String =
-    try {
-      config getString "target.name"
-    } catch {
-      case e: Throwable => fail(e.getLocalizedMessage); ""
-    }
-  val targetGroups: List[String] =
-    try {
-      config.getStringList("target.groups").asScala.toList
-    } catch {
-      case e: Throwable => fail(e.getLocalizedMessage); List[String]()
-    }
-  val numberOfTargetGroups: Int = targetGroups.length + 1    // target group 0 is the default group
+  val targetName: String = tryFail(config getString "target.name")
+  val targetGroups: List[String] = tryFail(config.getStringList("target.labels").asScala.toList)
+  implicit val numberOfTargetGroups: Int = targetGroups.length + 1    // target group 0 is the default group
+  fail(features.map(_.name).contains(targetName), s"Target feature '$targetName' is not contained in the list of feature attributes.")
 
-  val attributes: List[Attribute] =
-    try {
-      val attributes =
-        config.getConfigList("attributes").asScala.map(
-          attr => {
-            val name = attr.getString("name")
-            val hasEntropyBinning = try {attr.getString("binning") == "Entropy"} catch {case e: Throwable => false}
-            val typ = DataType(attr.getString("typ"))
-            Attribute(name, if (typ == DataType.NUMERIC && hasEntropyBinning) DataType.LNUMERIC else typ)
+  // TimeFeature generation
+  val timeName: Option[String] = tryWithDefault(Some(config getString "time.name"), None)
+  fail(timeName.isEmpty || features.map(_.name).contains(timeName.get),
+    s"Timestamp feature '$timeName' is not contained in the list of feature attributes.")
+
+  val featuresFiltered: List[Feature] =
+    features.filterNot(feature => feature.name == targetName || timeName.isDefined && feature.name == timeName.get)
+
+  /*
+     Checks whether a group definition exists. If yes, it is checked whether the group members are in the list of features, and further,
+     if the feature name of the group is not yet used as a feature name
+
+     The intermediate step of introducing groupData is necessary since only after features belonging to exclusive groups are
+     eliminated the list of base features and theirt position can be determined and only then the correct positions of group members
+     can be defined.
+   */
+  val groupData: List[(String, List[String], Boolean)] = {
+    val groups = tryWithDefault(config.getConfigList("derivedFeatures.groups").asScala.toList, Nil)
+    tryFail(
+      groups.map(
+        config => {
+          val name = config.getString("name")
+          fail(features.map(_.name).contains(name), s"Name of the group $name is already used as a feature name.")
+          val group = config.getStringList("group").asScala.toList
+          group.foreach(groupElement => {
+            fail(!features.map(_.name).contains(groupElement),
+              s"Group element $groupElement of group $group is not contained in the list of features.")
+            fail(groupElement != targetName, s"Target attribute $targetName is contained in some grouped feature.")
+            timeName.foreach(n => fail(groupElement != n, s"Target attribute $targetName is contained in some grouped feature."))
           }
-        )
-
-      val attributeNames = attributes.map(_.name)
-      fail(attributeNames.length == attributeNames.distinct.length, "There are double occurrences of attribute names")
-      attributes.toList
-    } catch {
-      case e: Throwable => fail(e.getLocalizedMessage); List[Attribute]()
-    }
-
-  fail(attributes.map(_.name).contains(targetName), s"Target attribute $targetName is not contained in the list of feature attributes.")
-
-  val groups: List[Attribute] =
-    try {
-      val groups =
-        config.getConfigList("groups").asScala.toList.map(
-          attr => {
-            val name = attr.getString("name")
-            val group = attr.getStringList("group").asScala.toList
-            Attribute(name, DataType.GROUP(group))
-          }
-        )
-
-      val attributeNames = attributes.map(_.name)
-      val allGroupedAttributeNames = groups.flatMap(_.typ match { case GROUP(names) => names; case _ => Nil })
-      fail(attributeNames.distinct.length >= allGroupedAttributeNames.distinct.length,
-        "There are attributes in the list of grouped features that do not occur in the list of attributes")
-
-      val nominalAttributeNames = attributes.filter(_.typ == DataType.NOMINAL).map(_.name)
-      fail(allGroupedAttributeNames.filterNot(nominalAttributeNames.contains(_)) == Nil,
-        "The list of grouped features contains featurtes that are not nominal")
-      groups
-    } catch {
-      case e: Throwable => fail(e.getLocalizedMessage); Nil
-    }
-
-  fail(!groups.map(_.name).contains(targetName), s"Target attribute $targetName is contained in some grouped features.")
-
-  val attributesUsed: List[Attribute] = {
-    val allGroupedAttributeNames = groups.flatMap(_.typ match { case GROUP(names) => names; case _ => Nil })
-    attributes.filterNot(attr => allGroupedAttributeNames.contains(attr.name))
-  }
-
-  val sizeOfRow: Int = attributesUsed.length + groups.length // -1 to get reid if the target attribute
-
-  val hasNumericValues: Boolean = attributes.exists(attr => attr.typ == DataType.NUMERIC || attr.typ == DataType.LNUMERIC)
-
-  val binning: Map[Attribute, Discretisation] = {
-    var map = Map[Attribute, Discretisation]()
-    val attributeConfigs = config.getConfigList("attributes").asScala.toList
-    for (attr <- attributeConfigs) {
-      val name = attr.getString("name")
-      val typ = DataType(attr.getString("typ"))
-      try {
-        val binning = attr.getString("binning")
-        binning match {
-          case "Entropy" =>
-            map = map + (Attribute(name, DataType.LNUMERIC) -> Entropy(name, attr.getInt("bins"), numberOfTargetGroups))
-          case "Interval" =>
-            map = map + (Attribute(name, typ) -> Intervals(attr.getDoubleList("intervals").asScala.toList.map(_.toDouble)))
-          case "EqualWidth" =>
-            map = map + (Attribute(name, typ) -> EqualWidth(name, attr.getInt("bins")))
-          case "EqualFrequency" =>
-            map = map + (Attribute(name, typ) -> EqualFrequency(name, attr.getInt("bins")))
-          case x =>
-            fail(s"Wrong binning method $x.")
+          )
+          val exclusive = tryWithDefault(config.getBoolean("exclusive"), true)
+          (name, group, exclusive)
         }
-      } catch {
-        case _: Throwable =>
-          map = map + (Attribute(name, typ) -> NoBinning)
-      }
-    }
-    map
+      )
+    )
   }
 
-  val usesOverlappingIntervals: Boolean = try {config getBoolean "useOverlappingIntervals"} catch {case e: Throwable => fail(e.getLocalizedMessage); false}
-
-  val delimitersForParallelExecution = List()
-
-  val rule: Rule =
-    try {
-      OrRule(toRules(config.getConfigList("rules").asScala.toList): _*)
-    } catch {
-      case _: Throwable =>
-        NoRule
+  private val allGroupedFeatureNames =
+    groupData.flatMap {
+      case (_, group, exclusive) => if (exclusive) group else Nil
+      case _ => Nil
     }
+
+  // TODO ask whether groups are additional or exclusive
+  val baseFeatures: List[Feature] =
+    featuresFiltered
+      .filterNot(feature => allGroupedFeatureNames.contains(feature.name))
+      .zipWithIndex
+      .map { case (Feature(name, typ, _), position) => Feature(name, typ, position) }
+
+  private val attributeToFeature = baseFeatures.map(feature => feature.name -> feature).toMap
+  private val attributeToPosition = attributeToFeature.mapValues(_.position)
+  private val noBaseFeatures = baseFeatures.length
+
+  val groupFeatures: List[Feature] = {
+    tryFail(
+      {
+        val groupFeatures =
+          groupData.map {
+            case (name, group, exclusive) =>
+              Feature(name, DerivedType.GROUP(group.map(attributeToPosition), exclusive))
+          }
+        groupFeatures.zipWithIndex.map { case (Feature(name, typ, _), position) => Feature(name, typ, position + noBaseFeatures) }
+      }
+    )
+  }
+
+  private val noGroupFeatures = groupFeatures.length
+
+  // TODO: timeFrame by number of Instances
+  val aggregateFeatures: List[Feature] = {
+    val aggregators = tryWithDefault(config.getConfigList("derivedFeatures.aggregators").asScala.toList, Nil)
+    val noOfFeatures = noBaseFeatures + noGroupFeatures
+    val aggregateFeatures: List[Feature] =
+      aggregators.flatMap(
+        aggr => {
+          val aggregationField = tryFail(aggr.getString("aggregationField"))
+          val seqId = tryWithDefault(Some(aggr.getString("seqId")), None)
+          val seqIdPos = seqId.map(attributeToPosition(_))
+          val operator = tryFail(AggregationOp(aggr.getString("operator").toLowerCase))
+          val attributes =
+            if (operator == AggregationOp.Count)
+              aggr.getStringList("attributes").asScala.toList
+            else
+              List(aggr.getString("attribute"))
+          if (operator != AggregationOp.Count) {
+            fail(attributeToFeature(attributes.head).typ == SimpleType.NUMERIC,
+              s"Attribute ${attributeToFeature(attributes.head).name} for derived feature $aggregationField is not numeric.")
+          }
+          val positions = attributes.map(attributeToPosition)
+          val existsOnly = tryFail(aggr.getBoolean("existsOnly"))
+          val condition = tryWithDefault(toRule(aggr.getConfig("condition")), NoRule)
+          val timeFrames = tryFail(aggr.getStringList("timeframes").asScala.toList)
+          val binning = tryWithDefault(genBinnigType(aggr.getConfig("binning")), NOBINNING)
+          timeFrames.map(
+            timeFrame => {
+              val tf = TimeFrame(timeFrame)
+              if (tf <= 0) fail(s"A time frame of derived feature $aggregationField is less than or equal 0.")
+              val name = s"Aggregate($timeFrame)"
+              if (operator == AggregationOp.Count)
+                Feature(name, DerivedType.COUNT(seqIdPos, positions, existsOnly, condition, binning, tf))
+              else
+                Feature(name, DerivedType.AGGREGATE(seqIdPos, positions.head, operator, existsOnly, condition, binning, tf))
+            }
+          )
+        })
+    aggregateFeatures.zipWithIndex.map { case (Feature(name, typ, _), position) => Feature(name, typ, position + noOfFeatures) }
+  }
+
+  val requiresAggregation: Boolean = aggregateFeatures.nonEmpty
+
+  private val allFeatures: List[Feature] = featuresFiltered ++ groupFeatures ++ aggregateFeatures
+  val featureAtPosition: IndexedSeq[Feature] = allFeatures.toIndexedSeq
+
+  private def typ2binning(typ: BinningType) =
+    typ match {
+      case BinningType.ENTROPY(bins) => Entropy(bins)
+      case BinningType.INTERVAL(delimiters) => Intervals(delimiters)
+      case BinningType.EQUALWIDTH(bins) => EqualWidth(bins)
+      case BinningType.EQUALFREQUENCY(bins) => EqualFrequency(bins)
+      case _ => NoBinning
+    }
+
+  val binning: Map[Int, Discretization] =
+    featuresFiltered.map(
+      feature =>
+        feature.typ match {
+          case aggr: DerivedType.AGGREGATE => aggr.position -> typ2binning(aggr.binning)
+          case typ: BinningType => feature.position -> typ2binning(typ)
+          case _ => feature.position -> NoBinning
+        }
+    ).toMap
+
+  val hasFeaturesToBin: Boolean = binning.nonEmpty
+
+  val rule: Rule = tryWithDefault(OrRule(toRules(config.getConfigList("rules").asScala.toList): _*)(this), NoRule)
 
   def toRules(rules: List[Config]): List[Rule] = rules.map(toRule)
 
-  def toRule(rule: Config): Rule =
-    try {
-      rule.getString("typ") match {
-        case "Nominal" => ItemRule(rule.getString("name"), Value(DataType.NOMINAL, rule.getString("value"), 0)(this))
-        case "Numerical" => ItemRule(rule.getString("name"), Value(DataType.NUMERIC, rule.getString("value"), 0)(this))
-        case "Boolean" => ItemRule(rule.getString("name"), Value(DataType.BOOLEAN, rule.getString("value"), 0)(this))
-        case "Date" => ItemRule(rule.getString("name"), Value(DataType.DATE, rule.getString("value"), 0)(this))
-        case "Range" => ItemRule(rule.getString("name"), Range(rule.getString("lo").toDouble, rule.getString("hi").toDouble))
-        case "Or" => OrRule(toRules(rule.getConfigList("rules").asScala.toList): _*)
-        case "And" => AndRule(toRules(rule.getConfigList("rules").asScala.toList): _*)
-      }
-    } catch {
-      case _: Throwable => fail(s"Ill formed rule'$rule'"); NoRule
+  private def toRule(rule: Config): Rule =
+    Try(rule.getString("op")) match {
+      case Success("eq") => EqRule(Value(rule.getString("arg"))(this))
+      case Success("gt") => CompRule(Comparator.GT, rule.getString("arg").toDouble)
+      case Success("ge") => CompRule(Comparator.GE, rule.getString("arg").toDouble)
+      case Success("lt") => CompRule(Comparator.LT, rule.getString("arg").toDouble)
+      case Success("le") => CompRule(Comparator.LE, rule.getString("arg").toDouble)
+      case Success("or") => OrRule(toRules(rule.getConfigList("rules").asScala.toList): _*)(this)
+      case Success("and") => AndRule(toRules(rule.getConfigList("rules").asScala.toList): _*)(this)
+      case Success(op) => fail(s"Ill formed operator'$op'."); NoRule
+      case Failure(e) => fail(s"Ill formed rule'$rule': ${e.getLocalizedMessage}"); NoRule
     }
 
-  val providers: List[Provider.Data] = {
-    val providerTyp = try {config getString "provider"} catch {case e: Throwable => fail(e.getLocalizedMessage); ""}
-    providerTyp match {
-      case "csvReader" =>
-        val separator: Char = try {config.getString("csvReader.separator").head} catch {case e: Throwable => CSVParser.DEFAULT_SEPARATOR}
-        val quoteCharacter: Char = try {config.getString("csvReader.quoteCharacter").head} catch {case e: Throwable => CSVParser.DEFAULT_QUOTE_CHARACTER}
-        val escapeCharacter: Char = try {config.getString("csvReader.escapeCharacter").head} catch {case e: Throwable => CSVParser.DEFAULT_ESCAPE_CHARACTER}
-        val dataFilesHaveHeader: Boolean = try {config getBoolean "csvReader.dataFilesHaveHeader"} catch {case e: Throwable => fail(e.getLocalizedMessage); false}
-        val dataFiles: List[String] = try {(config getStringList "csvReader.dataFiles").asScala.toList} catch {case e: Throwable => fail(e.getLocalizedMessage); List("")}
-        dataFiles.map(dateFile => Provider.Csv(dateFile, dataFilesHaveHeader, separator, quoteCharacter, escapeCharacter))
-      case "mySQLDB" =>
-        val host: String = try {config.getString("mySQLDB.host")} catch {case e: Throwable => fail(e.getLocalizedMessage); ""}
-        val port: Int = try {config.getInt("mySQLDB.port")} catch {case e: Throwable => fail(e.getLocalizedMessage); 0}
-        val db: String = try {config.getString("mySQLDB.database")} catch {case e: Throwable => fail(e.getLocalizedMessage); ""}
-        val table: String = try {config.getString("mySQLDB.table")} catch {case e: Throwable => fail(e.getLocalizedMessage); ""}
-        val user: String = try {config.getString("mySQLDB.user")} catch {case e: Throwable => fail(e.getLocalizedMessage); ""}
-        val password: String = try {config.getString("mySQLDB.password")} catch {case e: Throwable => fail(e.getLocalizedMessage); ""}
-        List(Provider.MySql(host, port, db, table, user, password))
-    }
-  }
+  // Program switches
+  val refineSubgroups: Boolean = tryWithDefault(config getBoolean "refineSubgroups", false)
+  val usesOverlappingIntervals: Boolean = tryWithDefault(config getBoolean "useOverlappingIntervals", false)
+  val computeClosureOfSubgroups: Boolean = tryWithDefault(config getBoolean "computeClosureOfSubgroups", false)
+
+  val delimitersForParallelExecution = List(50, 60, 65, 70, 75, 80, 90)
+
+  def delimiterRangesForParallelExecution(upper: Int): List[Range] =
+    (delimitersForParallelExecution :+ upper).foldLeft((0, List[Range]()))((acc, n) => (n, acc._2 :+ Range(acc._1, n)))._2
+
+  val numberOfWorkers: Int = tryWithDefault(config getInt "numberOfWorkers", 1)
 }

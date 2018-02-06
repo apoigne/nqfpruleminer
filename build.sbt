@@ -25,7 +25,7 @@ lazy val nqfpgrowth =
         "-Xlint:unchecked",
         "-Xlint:deprecation"
       ),
-      mappings in Universal += {packageBin in Compile map { p => p -> "lib/nquitefpgrowth.jar" }}.value,
+      mappings in Universal += {packageBin in Compile map { p => p -> "lib/nqfpgrowth.jar" }}.value,
       mappings in Universal ++= MappingsHelper.directory("resources"),
       mappings in Universal ++= MappingsHelper.contentOf("src/main/resources").map(x => (x._1,"resources/" + x._2)),
       crossPaths := false

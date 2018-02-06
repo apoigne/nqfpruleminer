@@ -1,10 +1,9 @@
 package de.fhg.iais.nqfpruleminer.apps
 
 import akka.actor.ActorSystem
-import better.files._
 import de.fhg.iais.nqfpruleminer.Context
 import de.fhg.iais.nqfpruleminer.actors.Master
-import de.fhg.iais.utils.{fail, time}
+import de.fhg.iais.utils.{fail, progress}
 import org.backuity.clist._
 
 object ruleminer extends CliMain[Unit](
@@ -13,7 +12,7 @@ object ruleminer extends CliMain[Unit](
     """Generates the k most interesting subgroups using the "Not Quite FPGrowth algorithm.
       |    Supported inputs are .csv files and .arff file.
       |    Assumptions:
-      |       -.csv files: first line defines the attributes
+      |       -.csv files: first line defines the feature names
       |       -.arff files: data are in csv format """.stripMargin
 
 ) {
@@ -25,11 +24,10 @@ object ruleminer extends CliMain[Unit](
   private val system = ActorSystem("nqfpminer")
 
   def run: Unit = {
-    fail(configFile.toFile.exists(), s"Configuration file ${configFile.toFile.path} does not exist")
     fail(numberOfBestSubgroups > 0, "Number of of best subgroups must be greater > 0.")
     fail(lengthOfSubgroups > 0, "Length of subgroups must be greater 0.")
 
-    implicit val ctx : Context = new Context(configFile, numberOfBestSubgroups, lengthOfSubgroups)
+    implicit val ctx: Context = new Context(configFile, numberOfBestSubgroups, lengthOfSubgroups)
 
     println(s"Maximal number of best subgroups considered:  $numberOfBestSubgroups")
     println(s"Maximal length of best subgroups considered: $lengthOfSubgroups")
@@ -40,8 +38,9 @@ object ruleminer extends CliMain[Unit](
     fail(ctx.numberOfTargetGroups == 2 && (ctx.qualityMode == "Piatetsky" || ctx.qualityMode == "Binomial"),
       "Mode is Piatetsky-Shapiro or Binomial. No unique target value is specified.")
 
-    time("sec needed for code generation")
-    system.actorOf(Master.props(lengthOfSubgroups, numberOfBestSubgroups), name = "master")
+    progress("sec needed for code generation")
+
+    system.actorOf(Master.props(), name = "master") ! Master.Start
+
   }
 }
-

@@ -2,12 +2,12 @@ package de.fhg.iais.nqfpruleminer.io
 
 import better.files._
 import de.fhg.iais.nqfpruleminer.actors.BestSubGroups.SubGroup
-import de.fhg.iais.nqfpruleminer.{Context, Distribution, Item}
+import de.fhg.iais.nqfpruleminer.{Coding, Context, Distribution}
 import de.fhg.iais.utils.binomialSum
 
 class WriteToText(numberOfItems: Int,
                   kBestSubGroups: List[SubGroup],
-                  decode: IndexedSeq[Item],
+                  decode: Coding.DecodingTable,
                   rootDistribution: Distribution,
                   subgroupCounter: Long
                  )(implicit ctx: Context) {
@@ -24,7 +24,7 @@ class WriteToText(numberOfItems: Int,
 
       val output =
 //        s"Dataset: ${ctx.dataFiles}\n\n" +
-          s"Target:  attribute: ${ctx.targetName}, values: $targetValues\n" +
+          s"Target:  feature: ${ctx.targetName}, values: $targetValues\n" +
           s"Quality function: ${ctx.qualityMode}\n" +
           s"Number of items: $numberOfItems\n\n" +
           s"TargetValueDistribution: " +

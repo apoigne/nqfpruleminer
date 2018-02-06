@@ -1,4 +1,4 @@
-Target:  attribute: Class, values: win
+Target:  feature: Class, values: win
 Quality function: Piatetsky
 Number of items: 126
 
@@ -406,4 +406,4 @@ Size = 19546, Generality = 0.28932605059431293, p = 0.2313516832088407
 Quality = 0.03192061304199071
 Size = 19545, Generality = 0.2893112482792309, p = 0.23136352008186237
 
-Considered 23904 subgroups of depth <= 3 out of 333501 with maxDepth 3, i.e. 7.167594699865967 % 
+Considered 25226 subgroups of depth <= 3 out of 333501 with maxDepth 3, i.e. 7.56399531035889 % 

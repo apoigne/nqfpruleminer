@@ -1,6 +1,6 @@
 package  de.fhg.iais.utils
 
-object time {
+object progress {
   private var theTime = System.currentTimeMillis()
 
   def apply(text: String) : String = {
@@ -10,4 +10,3 @@ object time {
     res
   }
 }
-

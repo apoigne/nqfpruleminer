@@ -1,115 +1,126 @@
 package de.fhg.iais.nqfpruleminer.actors
 
-import javax.swing.table.AbstractTableModel
-
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
-import de.fhg.iais.nqfpruleminer.Context
+import akka.routing.{Broadcast, RoundRobinPool}
 import de.fhg.iais.nqfpruleminer.actors.BestSubGroups.MinQ
-import de.fhg.iais.nqfpruleminer.actors.NqFpTree.NoMoreInstances
-import de.fhg.iais.table.ATable
-import de.fhg.iais.utils.time
+import de.fhg.iais.nqfpruleminer.io.Reader
+import de.fhg.iais.nqfpruleminer.{Coding, Context}
+import de.fhg.iais.utils.progress
 
 object Master {
-  def props(lengthOfSubgroups: Int, numberOfBestSubgroups: Int)(implicit ctx: Context): Props = Props(classOf[Master], lengthOfSubgroups, numberOfBestSubgroups, ctx)
+  def props()(implicit ctx: Context): Props = Props(classOf[Master], ctx)
+
+  case object Start
+  case class GenerateTrees(nqfptrees: List[(Range, ActorRef)], coding: Coding)
 }
 
-class Master(lengthOfSubgroups: Int, numberOfBestSubgroups: Int)(implicit ctx: Context) extends Actor with ActorLogging {
+class Master(implicit ctx: Context) extends Actor with ActorLogging {
 
   import de.fhg.iais.nqfpruleminer._
 
-  private val itemFrequencies = scala.collection.mutable.Map[Item, Int]()
+  log.info(s"Started.")
 
-  lazy val coding: Coding = new Coding(itemFrequencies.toMap)
+  private val itemFrequencies = scala.collection.mutable.Map[Value, Distribution]()
+  private val rootDistr: Distribution = Distribution()(ctx.numberOfTargetGroups)
 
-  private val providers = ctx.providers
+  private val workers = context.actorOf(RoundRobinPool(ctx.numberOfWorkers).props(Worker.props(self)), name = "worker")
+  private val listener = if (ctx.requiresAggregation) context.actorOf(Aggregator.props(workers), name = "aggregator") else workers
+  val reader = new Reader(io.Provider(ctx.providerData), listener)
 
-  private var fileCounter = providers.length
+  def receive: Receive = {
+    case Master.Start =>
+      reader.run()
+      context become waitForItemsToBeGenerated(ctx.numberOfWorkers)
+  }
 
-  log.info(s"number of files $fileCounter")
+  def waitForItemsToBeGenerated(n: Int): Receive = {
+    case count@Worker.Count(table, distr) =>
+      table.foreach {
+        case (value, distribution) =>
+          itemFrequencies get value match {
+            case None => itemFrequencies += (value -> distribution)
+            case Some(_distribution) => _distribution.add(distribution)
+          }
+      }
+      rootDistr.add(distr)
+      if (n > 1) {
+        context become waitForItemsToBeGenerated(n - 1)
+      } else {
+        log.info(progress("sec needed for counting items"))
 
-  val rootDistr: Distribution = Distribution()(ctx.numberOfTargetGroups)
+        val n0 = rootDistr.sum.toDouble
+        assert(n0 > 0.0, "n0: division by 0")
+        val p0 = Array.tabulate(ctx.numberOfTargetGroups)(rootDistr(_).toDouble / n0)
 
-  private var nqFpTrees = List[ActorRef]()
-  private var treeCounter = 0
+        implicit val quality: Distribution => Strategy =
+          ctx.qualityMode match {
+            case "Piatetsky" => Piatetsky(ctx.minG, ctx.minP, n0, p0).eval
+            case "Piatetsky-Shapiro" => Piatetsky(ctx.minG, ctx.minP, n0, p0).eval
+            case "Binomial" => Binomial(ctx.minG, ctx.minP, n0, p0).eval
+            case "Split" => Split(ctx.minG, ctx.numberOfTargetGroups, n0, p0).eval
+            case "Gini" => Gini(ctx.minG, ctx.numberOfTargetGroups, n0, p0).eval
+            case "Pearson" => Pearson(ctx.minG, ctx.numberOfTargetGroups, n0, p0).eval
+          }
+
+        // We take the  maxNumberOfItems of items with the best quality
+        val filteredItems =
+          itemFrequencies
+            .toMap
+            .mapValues(quality)
+            .toList
+            .sortBy { case (v, Pursue(q, _, _)) => q; case (v, Prune) => 0.0 }
+            .take(ctx.maxNumberOfItems)
+            .map(_._1)
+
+        val filteredItemFrequencies =
+          filteredItems.map(value => value -> itemFrequencies(value)).toMap
+
+        // Only these are encoded
+        val coding: Coding = new Coding(filteredItemFrequencies)
+        log.info(progress("sec needed for binning items"))
+        log.info(s"Number of items: ${coding.numberOfItems}")
+
+        context.actorOf(BestSubGroups.props(coding.numberOfItems, coding.decodingTable), name = "bestsubgroups")
+
+        val nqFpTrees =
+          ctx.delimiterRangesForParallelExecution(coding.numberOfItems)
+            .map(range =>
+              range ->
+                context.actorOf(NqFpTree.props(range, coding.numberOfItems, ctx.lengthOfSubgroups),
+                  name = s"nqfptree-${range.start}-${range.end}"))
+
+        implicit val trees: List[ActorRef] = nqFpTrees.map(_._2)
+
+        workers ! Broadcast(Master.GenerateTrees(nqFpTrees, coding))
+        context become waitForTreeGenerationTermination(ctx.numberOfWorkers)
+      }
+
+  }
+
+  def waitForTreeGenerationTermination(n: Int)(implicit trees: List[ActorRef], quality: Distribution => Strategy): Receive = {
+    case Worker.Terminated =>
+      if (n <= 1) {
+        log.info(progress("sec needed for tree generation"))
+        for (tree <- trees) tree ! NqFpTree.NoMoreInstances(quality)
+        context become receiveDistributions(trees)
+      } else {
+        context become waitForTreeGenerationTermination(n - 1)
+      }
+
+  }
 
   private var subgroupCounter = 0
 
-  private var instances = new ATable
-
-  for (provider <- providers) context.actorOf(ItemCounter.props(provider)) ! ItemCounter.Start
-
-  def receive: Receive = {
-    case instance: Instance =>
-      instances.add(instance)
-    case ItemCounter.Count(table) =>
-      table.foreach {
-        case (k, v) =>
-          itemFrequencies get k match {
-            case None => itemFrequencies += (k -> v)
-            case Some(_v) => itemFrequencies.update(k, v + _v)
-          }
-      }
-      fileCounter -= 1
-      log.info(s"file number $fileCounter")
-      if (fileCounter <= 0) {
-        log.info(time("sec needed for counting items"))
-        log.info(s"Number of items: ${coding.numberOfItems}")
-        context become genTrees
-      }
-  }
-
-  def genTrees: Receive = {
-    fileCounter = providers.length
-    nqFpTrees =
-      (ctx.delimitersForParallelExecution :+ coding.numberOfItems)
-        .foldLeft((0, List[ActorRef]()))(
-          (acc, n) =>
-            (n, acc._2 :+ context.actorOf(NqFpTree.props(acc._1, n, coding.numberOfItems, lengthOfSubgroups), name = s"${acc._1}-$n"))
-        )._2
-    log.info(time("sec needed for binning items"))
-    treeCounter = nqFpTrees.length
-    log.info(s"file number $fileCounter")
-
-    instances.foreach {
-      case Instance(label, instance) =>
-        if (instance.nonEmpty) {
-          rootDistr.add(label)
-          val sortedInstance = instance.map(coding.encode).sortWith(_ < _)
-          for (tree <- nqFpTrees) tree ! TreeGenerator.DataFrame(label, sortedInstance.toList)
-        }
-    }
-
-    log.info(time("sec needed for tree generation"))
-    log.info("Start mining")
-    val n0 = rootDistr.sum.toDouble
-    assert(n0 > 0.0, "n0: division by 0")
-    val p0 = Array.tabulate(ctx.numberOfTargetGroups)(rootDistr(_).toDouble / n0)
-
-    val quality: Distribution => Strategy =
-      ctx.qualityMode match {
-        case "Piatetsky" => Piatetsky(ctx.minG, ctx.minP, n0, p0).eval
-        case "Piatetsky-Shapiro" => Piatetsky(ctx.minG, ctx.minP, n0, p0).eval
-        case "Binomial" => Binomial(ctx.minG, ctx.minP, n0, p0).eval
-        case "Split" => Split(ctx.minG, ctx.numberOfTargetGroups, n0, p0).eval
-        case "Gini" => Gini(ctx.minG, ctx.numberOfTargetGroups, n0, p0).eval
-        case "Pearson" => Pearson(ctx.minG, ctx.numberOfTargetGroups, n0, p0).eval
-      }
-    context.actorOf(BestSubGroups.props(coding.numberOfItems, coding.decodingTable.toIndexedSeq), name = "bestsubgroups")
-    for (tree <- nqFpTrees) tree ! NoMoreInstances(quality)
-    receiveDistributions
-  }
-
-  def receiveDistributions: Receive = {
+  def receiveDistributions(trees: List[ActorRef]): Receive = {
     case MinQ(minQ) =>
-//      log.info(s"master $minQ")
-      for (tree <- nqFpTrees) tree ! MinQ(minQ)
-    case NqFpTree.Terminated(_subgroupCounter) =>
-      treeCounter -= 1
-      subgroupCounter += _subgroupCounter
-      if (treeCounter == 0) {
-        log.info(time("sec needed for subgroup generation."))
+      for (tree <- trees) tree ! MinQ(minQ)
+    case NqFpTree.Terminated(tree, numberOfSubgroups) =>
+      subgroupCounter += numberOfSubgroups
+      if (trees.lengthCompare(1) <= 0) {
+        log.info(progress("sec needed for subgroup generation."))
         context.actorSelection("akka://nqfpminer/user/master/bestsubgroups") ! BestSubGroups.GenOutput(rootDistr, subgroupCounter)
+      } else {
+        context become receiveDistributions(trees.filterNot(_ == tree))
       }
   }
-
 }

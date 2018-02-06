@@ -3,7 +3,7 @@ package de.fhg.iais.nqfpruleminer.actors
 import akka.actor.{Actor, ActorLogging, Props}
 import akka.util.Timeout
 import de.fhg.iais.nqfpruleminer.io.{WriteToJson, WriteToText}
-import de.fhg.iais.nqfpruleminer.{Context, Distribution, Item}
+import de.fhg.iais.nqfpruleminer.{Coding, Context, Distribution, Value}
 import de.fhg.iais.utils.fail
 
 import scala.concurrent.ExecutionContextExecutor
@@ -14,22 +14,21 @@ object BestSubGroups {
   type Qual = Double
   type Gen = Double
 
-  case class SubGroup(group: List[Int], distr: IndexedSeq[Int], quality: Qual, generality: Gen, path: String)
-  //  case class ComputeBestSubgroups(headers: List[FPnode], distr: IndexedSeq[Int], group: List[Int], q: Qual, g: Gen, path: String)
+  case class SubGroup(group: List[Int], distr: IndexedSeq[Int], quality: Qual, generality: Gen)
   case class MinQ(value: Double)
   case class GenOutput(rootDistribution: Distribution, subgroupCounter: Int)
 
-  def props(numberOfItems: Int, decode: IndexedSeq[Item])(implicit ctx: Context) =
+  def props(numberOfItems: Int, decode: Coding.DecodingTable)(implicit ctx: Context) =
     Props(classOf[BestSubGroups], numberOfItems, decode, ctx)
 }
 
-class BestSubGroups(numberOfItems: Int, decode: IndexedSeq[Item])(implicit ctx: Context) extends Actor with ActorLogging {
+class BestSubGroups(numberOfItems: Int, decode: IndexedSeq[Value])(implicit ctx: Context) extends Actor with ActorLogging {
+  log.info("Started")
 
   import BestSubGroups._
 
   private var _minQ = ctx.minimalQuality
   private val refineSubgroups = ctx.refineSubgroups
-//  private val computeClosureOfSubgroups = nqfpruleminer.computeClosureOfSubgroups
 
   private var kBestSubGroups = List[SubGroup]()
 
@@ -37,17 +36,14 @@ class BestSubGroups(numberOfItems: Int, decode: IndexedSeq[Item])(implicit ctx: 
   implicit val timeout: Timeout = 1.second
 
   def receive: Receive = {
-    case msg@SubGroup(group, distr, q, g, path) =>
-//      log.info(s"$path $distr $group $q")
+    case subGroup: SubGroup =>
       if (kBestSubGroups.length < ctx.numberOfBestSubgroups) {
-        //        val _group = if (computeClosureOfSubgroups) computeClosure(headerOfMajorItems, group) else group
-        val subgroup = SubGroup(group, distr, q, g, path)
-        kBestSubGroups = insert(subgroup, kBestSubGroups)
-        val newMinQ = kBestSubGroups.head.quality
-        if (newMinQ > _minQ) update(newMinQ, path, subgroup)
+        kBestSubGroups = insert(subGroup, kBestSubGroups)
+//        val newMinQ = kBestSubGroups.head.quality
+//        if (newMinQ > _minQ) update(newMinQ)
       } else {
         context become receiveFull
-        self ! msg
+        self ! subGroup
       }
 
     case GenOutput(rootDistribution, subgroupCounter) =>
@@ -55,21 +51,17 @@ class BestSubGroups(numberOfItems: Int, decode: IndexedSeq[Item])(implicit ctx: 
   }
 
   def receiveFull: Receive = {
-    case SubGroup(group, distr, q, g, path) =>
-//      log.info(s"$path $distr $group $q")
-      if (q > _minQ) {
-        //        val _group = if (computeClosureOfSubgroups) computeClosure(headerOfMajorItems, group) else group
-        val subgroup = SubGroup(group, distr, q, g, path)
-        kBestSubGroups = insert(subgroup, kBestSubGroups.tail)
+    case subGroup: SubGroup =>
+      if (subGroup.quality > _minQ) {
+        kBestSubGroups = insert(subGroup, kBestSubGroups.tail)
         val newMinQ = kBestSubGroups.head.quality
-        if (newMinQ > _minQ) update(newMinQ, path, subgroup)
+        if (newMinQ > _minQ) update(newMinQ)
       }
     case GenOutput(rootDistribution, subgroupCounter) =>
       genOutput(rootDistribution, subgroupCounter)
   }
 
-  private def update(newMinQ: Double, path: String, group: SubGroup): Unit = {
-//    log.info(s"newMinQ $newMinQ $path ${group.group} ${group.quality}")
+  private def update(newMinQ: Double): Unit = {
     context.actorSelection(s"akka://nqfpminer/user/master") ! MinQ(newMinQ)
     _minQ = newMinQ
   }
@@ -95,93 +87,15 @@ class BestSubGroups(numberOfItems: Int, decode: IndexedSeq[Item])(implicit ctx: 
       case _sg :: best =>
         if (_sg.quality < sg.quality)
           _sg :: insert(sg, best)
-        else if (isExtensionOf(_sg.group, sg.group) && _sg.quality < sg.quality && refineSubgroups)
-          _sg :: best
+        else if (_sg.quality < sg.quality && refineSubgroups)
+          if (isExtensionOf(_sg.group, sg.group)) _sg :: best else sg :: _sg :: best
         else
           sg :: _sg :: best
     }
   }
 
-//  // invariant: items are of decreasing order, children as well
-//  def lowerClosure(items: List[Int], nodes: List[FPnode]): List[Int] = {
-//    def closureForNode(items: List[Int], node: FPnode): List[Int] = {
-//      items match {
-//        case Nil => Nil
-//        case List(item) =>
-//          if (item == node.item) {
-//            List(item)
-//          } else if (item < node.item) {
-//            node.parent match {
-//              case None => Nil
-//              case Some(_parent) => if (_parent.isRoot) Nil else closureForNode(items, _parent)
-//            }
-//          } else {
-//            Nil
-//          }
-//        case item :: items1 =>
-//          if (item == node.item) {
-//            node.parent match {
-//              case None => List(item)
-//              case Some(_parent) => closureForNode(items, _parent)
-//            }
-//          } else if (item > node.item) {
-//            if (node.isRoot) Nil else closureForNode(items1, node)
-//          } else {
-//            node.parent match {
-//              case None => Nil
-//              case Some(_parent) => closureForNode(items, _parent)
-//            }
-//          }
-//      }
-//    }
-//    nodes match {
-//      case Nil => Nil: List[Int]
-//      case List(node) => closureForNode(items, node)
-//      case node :: _nodes => lowerClosure(closureForNode(items, node), _nodes)
-//    }
-//  }
-//
-//  // invariant: items are of increasing order, children as well
-//  def upperClosure(items: List[Int], nodes: List[FPnode]): List[Int] = {
-//    def closureForNode(items: List[Int], children: List[FPnode]): List[Int] = {
-//      (items, children) match {
-//        case (Nil, _) => Nil
-//        case (_, Nil) => Nil
-//        case (List(item), List(child)) =>
-//          if (item == child.item) List(item) else Nil
-//        case (item :: items1, List(child)) =>
-//          if (item == child.item) item :: closureForNode(items1, child.children) else Nil
-//        case (item :: items1, child :: children1) =>
-//          val items =
-//            if (item == child.item)
-//              item :: closureForNode(items1, child.children)
-//            else if (item < child.item)
-//              closureForNode(items1, children)
-//            else
-//              closureForNode(items1, child.children)
-//          closureForNode(items, children1)
-//      }
-//    }
-//    nodes match {
-//      case Nil => Nil
-//      case List(node) => closureForNode(items, node.children)
-//      case node :: _nodes => upperClosure(closureForNode(items, node.children), _nodes)
-//    }
-//  }
-//
-//  private def computeClosure(headerOfMajorItems: List[FPnode], group: List[Int]) = {
-//    val majorItem = group.last
-//    val lowerItems = Array.tabulate(majorItem + 1)(majorItem - _).toList
-//    val upperItems = Array.tabulate(coding.numberOfItems - majorItem - 1)(majorItem + _ + 1).toList
-//    val lowerClosedSet = lowerClosure(lowerItems, headerOfMajorItems).reverse
-//    val upperClosedSet = upperClosure(upperItems, headerOfMajorItems)
-//    if (lowerClosedSet.intersect(group) == group)
-//      lowerClosedSet ++ upperClosedSet
-//    else
-//      group
-//  }
-
   private def genOutput(rootDistribution: Distribution, subgroupCounter: Int): Unit = {
+
     ctx.outputFormat match {
       case "txt" => new WriteToText(numberOfItems, kBestSubGroups, decode, rootDistribution, subgroupCounter).write()
       case "json" => new WriteToJson(numberOfItems, kBestSubGroups, decode, rootDistribution, subgroupCounter).write()

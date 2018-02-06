@@ -10,16 +10,16 @@ object Dependencies {
 
   object Version {
     val opencsv = "3.8"
-    val scalaTest = "3.0.1"
+    val scalaTest = "3.0.4"
     val sprayJson = "1.3.3"
-    val akka = "2.5.6"
-    val config = "1.3.1"
-    val clist = "3.2.2"
-    val betterFiles = "3.0.0"
+    val akka = "2.5.9"
+    val config = "1.3.2"
+    val clist = "3.3.0"
+    val betterFiles = "3.4.0"
     val jodaTime = "2.9.9"
     val quill = "2.1.0"
     val mySql = "5.1.38"
-    val mySqlConnector = "6.0.6"
+    val mySqlConnector = "8.0.8-dmr"
     val h2 = "1.4.196"
     val scalikejJDCB = "3.1.0"
     val logback = "1.2.3"
@@ -29,6 +29,7 @@ object Dependencies {
   private val sprayJson = "io.spray" % "spray-json_2.12" % Version.sprayJson
   private val config = "com.typesafe" % "config" % Version.config
   private val akkaActor = "com.typesafe.akka" %% "akka-actor" % Version.akka
+  private val akkaTestkit = "com.typesafe.akka" %% "akka-testkit" % Version.akka
   private val opencsv = "com.opencsv" % "opencsv" % Version.opencsv
   private val clistCore = "org.backuity.clist" %% "clist-core" % Version.clist
   private val clistMacros = "org.backuity.clist" %% "clist-macros" % Version.clist
@@ -43,6 +44,7 @@ object Dependencies {
 
   val allDependencies = Seq(
     akkaActor,
+    akkaTestkit,
     scalaTest % "test",
     sprayJson,
     config,

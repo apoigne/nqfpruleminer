@@ -1,24 +1,24 @@
 package de.fhg.iais.nqfpruleminer.actors
 
-import akka.actor.{Actor, ActorLogging, Props}
+import akka.actor.{Actor, ActorLogging, ActorRef, PoisonPill, Props}
+import de.fhg.iais.nqfpruleminer.Value.Label
 import de.fhg.iais.nqfpruleminer._
 
 object NqFpTree {
-  case class Instance(value: List[Int])
+  case class EncodedInstance(label: Label, values: List[Int])
   case class NoMoreInstances(quality: Distribution => Strategy)
   case object Next
-  case class Terminated(subgroupCounter: Int)
+  case class Terminated(tree: ActorRef, subgroupCounter: Int)
 
-  def props(lower: Int, upper: Int, numberOfItems : Int, lengthOfSubgroups: Int)(implicit ctx : Context) =
-    Props(classOf[NqFpTree], lower, upper, numberOfItems, lengthOfSubgroups, ctx)
+  def props(range: Range, numberOfItems: Int, lengthOfSubgroups: Int)(implicit ctx: Context) =
+    Props(classOf[NqFpTree], range.start, range.end, numberOfItems, lengthOfSubgroups, ctx)
 }
 
-class NqFpTree(lower: Int, upper: Int, numberOfItems : Int, lengthOfSubgroups: Int)(implicit ctx : Context) extends Actor with ActorLogging {
+class NqFpTree(lower: Int, upper: Int, numberOfItems: Int, lengthOfSubgroups: Int)(implicit ctx: Context) extends Actor with ActorLogging {
   import NqFpTree._
 
-
+  log.info("Started")
   private var minQ = ctx.minimalQuality
-
   implicit val numberOfTargetGroups: Int = ctx.numberOfTargetGroups
 
   private var subgroupCounter = 0
@@ -27,14 +27,15 @@ class NqFpTree(lower: Int, upper: Int, numberOfItems : Int, lengthOfSubgroups: I
   private var depth = 0
 
   def receive: Receive = {
-    case TreeGenerator.DataFrame(label, _instance) =>
-      val instance = _instance.filter(_ < upper)
-      if (instance.exists(_ >= lower)) {
-        val distr = Distribution(label)
-        addInstance(root, distr, instance)
-      }
+    case EncodedInstance(label, instance) =>
+//      val instance = _instance.filter(_ < upper)
+//      if (instance.exists(_ >= lower)) {
+//      log.info(instance.toString)
+      val distr = Distribution(label)
+      addInstance(root, distr, instance)
+//      }
     case NoMoreInstances(quality) =>
-      log.info(s"Tree ($lower, $upper) generated. Number of nodes = $nodeCounter")
+      log.info(s"Number of nodes = $nodeCounter")
       estimates(Nil, upper, 0, quality)
       context become computeSubgroups(quality)
       self ! Next
@@ -52,8 +53,7 @@ class NqFpTree(lower: Int, upper: Int, numberOfItems : Int, lengthOfSubgroups: I
       val item = subGroup(depth)
       if (depth > 0 && item < subGroup(depth - 1) || depth == 0 && item < upper) {
         if (depth + 1 < lengthOfSubgroups && optimisticEstimate(depth)(item) > minQ) {
-          if (depth == 0)
-            log.info(s"Eval item $item")
+          if (depth == 0) log.info(s"Evaluation of item $item started")
           headers(item).foreach(pushParents(depth))
           depth += 1
           Array.copy(optimisticEstimate(depth - 1), 0, optimisticEstimate(depth), 0, item)
@@ -67,8 +67,8 @@ class NqFpTree(lower: Int, upper: Int, numberOfItems : Int, lengthOfSubgroups: I
         if (subGroup.head + 1 <= upper) {
           self ! Next
         } else {
-          log.info(s"${self.path} terminated")
-          context.actorSelection(s"akka://nqfpminer/user/master") ! NqFpTree.Terminated(subgroupCounter)
+          log.info("Terminated")
+          context.actorSelection(s"akka://nqfpminer/user/master") ! NqFpTree.Terminated(self, subgroupCounter)
         }
       } else if (depth > 0) {
         val _item = subGroup(depth)
@@ -77,8 +77,9 @@ class NqFpTree(lower: Int, upper: Int, numberOfItems : Int, lengthOfSubgroups: I
         if (_item <= upper) headers(_item).foreach(popParents(depth))
         self ! Next
       } else {
-        log.info(s"${self.path} terminated")
-        context.actorSelection(s"akka://nqfpminer/user/master") ! NqFpTree.Terminated(subgroupCounter)
+        log.info("Terminated")
+        context.actorSelection(s"akka://nqfpminer/user/master") ! NqFpTree.Terminated(self, subgroupCounter)
+        self ! PoisonPill
       }
     case BestSubGroups.MinQ(_minQ) =>
       minQ = _minQ
@@ -86,6 +87,7 @@ class NqFpTree(lower: Int, upper: Int, numberOfItems : Int, lengthOfSubgroups: I
 
   private def pushParents(currentDepth: Int)(node: FPnode): Unit = {
     val distr = node.distr
+
     def pushParents(_node: FPnode): Unit = {
       _node.parent match {
         case Some(_parent) if _parent.isRoot =>
@@ -101,6 +103,7 @@ class NqFpTree(lower: Int, upper: Int, numberOfItems : Int, lengthOfSubgroups: I
         case None =>
       }
     }
+
     if (node.depth == currentDepth) pushParents(node)
   }
 
@@ -115,6 +118,7 @@ class NqFpTree(lower: Int, upper: Int, numberOfItems : Int, lengthOfSubgroups: I
           case None =>
         }
       }
+
       if (node.depth == currentDepth) popParents(node)
     }
 
@@ -132,9 +136,11 @@ class NqFpTree(lower: Int, upper: Int, numberOfItems : Int, lengthOfSubgroups: I
     subgroupCounter += 1
     quality(itemDistributions(item)) match {
       case Prune => 0.0
-      case Quality(q, g, oe) =>
-        if (q > minQ && subGroup.head >= lower)
-          bestSubgroups ! BestSubGroups.SubGroup(subGroup, itemDistributions(item).toList, q, g, self.path.name)
+      case Pursue(q, g, oe) =>
+        if (q > minQ && subGroup.head >= lower) {
+          val _subGroup = if (ctx.computeClosureOfSubgroups) computeClosure(headers(item), subGroup) else subGroup
+          bestSubgroups ! BestSubGroups.SubGroup(_subGroup, itemDistributions(item).toList, q, g)
+        }
         oe
     }
   }
@@ -161,5 +167,86 @@ class NqFpTree(lower: Int, upper: Int, numberOfItems : Int, lengthOfSubgroups: I
           }
         addInstance(child, distr, _items)
     }
+  }
+
+  // invariant: items are of decreasing order, children as well
+  def lowerClosure(items: List[Int], nodes: List[FPnode]): List[Int] = {
+    def closureForNode(items: List[Int], node: FPnode): List[Int] = {
+      items match {
+        case Nil => Nil
+        case List(item) =>
+          if (item == node.item) {
+            List(item)
+          } else if (item < node.item) {
+            node.parent match {
+              case None => Nil
+              case Some(_parent) => if (_parent.isRoot) Nil else closureForNode(items, _parent)
+            }
+          } else {
+            Nil
+          }
+        case item :: items1 =>
+          if (item == node.item) {
+            node.parent match {
+              case None => List(item)
+              case Some(_parent) => closureForNode(items, _parent)
+            }
+          } else if (item > node.item) {
+            if (node.isRoot) Nil else closureForNode(items1, node)
+          } else {
+            node.parent match {
+              case None => Nil
+              case Some(_parent) => closureForNode(items, _parent)
+            }
+          }
+      }
+    }
+
+    nodes match {
+      case Nil => Nil: List[Int]
+      case List(node) => closureForNode(items, node)
+      case node :: _nodes => lowerClosure(closureForNode(items, node), _nodes)
+    }
+  }
+
+  // invariant: items are of increasing order, children as well
+  def upperClosure(items: List[Int], nodes: List[FPnode]): List[Int] = {
+    def closureForNode(items: List[Int], children: List[FPnode]): List[Int] = {
+      (items, children) match {
+        case (Nil, _) => Nil
+        case (_, Nil) => Nil
+        case (List(item), List(child)) =>
+          if (item == child.item) List(item) else Nil
+        case (item :: items1, List(child)) =>
+          if (item == child.item) item :: closureForNode(items1, child.children) else Nil
+        case (item :: items1, child :: children1) =>
+          val items =
+            if (item == child.item)
+              item :: closureForNode(items1, child.children)
+            else if (item < child.item)
+              closureForNode(items1, children)
+            else
+              closureForNode(items1, child.children)
+          closureForNode(items, children1)
+      }
+    }
+
+    nodes match {
+      case Nil => Nil
+      case List(node) => closureForNode(items, node.children)
+      case node :: _nodes => upperClosure(closureForNode(items, node.children), _nodes)
+    }
+  }
+
+  private def computeClosure(headerOfMajorItems: List[FPnode], subGroup: List[Int]) = {
+    val majorItem = subGroup.last
+    val lowerItems = Array.tabulate(majorItem + 1)(majorItem - _).toList
+    val upperItems = Array.tabulate(numberOfItems - majorItem - 1)(majorItem + _ + 1).toList
+    val lowerClosedSet = lowerClosure(lowerItems, headerOfMajorItems).reverse
+    val upperClosedSet = upperClosure(upperItems, headerOfMajorItems)
+    if (lowerClosedSet.intersect(subGroup) == subGroup)
+      lowerClosedSet ++ upperClosedSet
+    else
+      subGroup
   }
 }
