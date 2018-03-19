@@ -11,7 +11,7 @@ object Master {
   def props()(implicit ctx: Context): Props = Props(classOf[Master], ctx)
 
   case object Start
-  case class GenerateTrees(nqfptrees: List[(Range, ActorRef)], coding: Coding)
+  case class GenerateTrees(nqfptrees: List[(Range, ActorRef)], codingTable: Coding.CodingTable)
 }
 
 class Master(implicit ctx: Context) extends Actor with ActorLogging {
@@ -20,7 +20,7 @@ class Master(implicit ctx: Context) extends Actor with ActorLogging {
 
   log.info(s"Started.")
 
-  private val itemFrequencies = scala.collection.mutable.Map[Value, Distribution]()
+  private val itemFrequencies = scala.collection.mutable.Map[Item, Distribution]()
   private val rootDistr: Distribution = Distribution()(ctx.numberOfTargetGroups)
 
   private val workers = context.actorOf(RoundRobinPool(ctx.numberOfWorkers).props(Worker.props(self)), name = "worker")
@@ -49,10 +49,10 @@ class Master(implicit ctx: Context) extends Actor with ActorLogging {
         log.info(progress("sec needed for counting items"))
 
         val n0 = rootDistr.sum.toDouble
-        assert(n0 > 0.0, "n0: division by 0")
+        assert(n0 > 0.0, "There is no item recorded, i.e. n0 == 0")
         val p0 = Array.tabulate(ctx.numberOfTargetGroups)(rootDistr(_).toDouble / n0)
 
-        implicit val quality: Distribution => Strategy =
+        implicit val quality: Distribution => Quality =
           ctx.qualityMode match {
             case "Piatetsky" => Piatetsky(ctx.minG, ctx.minP, n0, p0).eval
             case "Piatetsky-Shapiro" => Piatetsky(ctx.minG, ctx.minP, n0, p0).eval
@@ -65,10 +65,11 @@ class Master(implicit ctx: Context) extends Actor with ActorLogging {
         // We take the  maxNumberOfItems of items with the best quality
         val filteredItems =
           itemFrequencies
-            .toMap
+            .filter { case (_, _distr) => _distr.probability.forall(_ >= ctx.minP) }
             .mapValues(quality)
             .toList
-            .sortBy { case (v, Pursue(q, _, _)) => q; case (v, Prune) => 0.0 }
+            .filter({ case (_, Quality(q, g, _)) => g >= ctx.minG })
+            .sortBy { case (_, Quality(q, g, _)) => q }
             .take(ctx.maxNumberOfItems)
             .map(_._1)
 
@@ -84,20 +85,23 @@ class Master(implicit ctx: Context) extends Actor with ActorLogging {
 
         val nqFpTrees =
           ctx.delimiterRangesForParallelExecution(coding.numberOfItems)
-            .map(range =>
-              range ->
-                context.actorOf(NqFpTree.props(range, coding.numberOfItems, ctx.lengthOfSubgroups),
-                  name = s"nqfptree-${range.start}-${range.end}"))
+            .map(
+              range =>
+                range ->
+                  context.actorOf(
+                    NqFpTree.props(range, coding.numberOfItems, ctx.lengthOfSubgroups),
+                    name = s"nqfptree-${range.start}-${range.end}")
+            )
 
         implicit val trees: List[ActorRef] = nqFpTrees.map(_._2)
 
-        workers ! Broadcast(Master.GenerateTrees(nqFpTrees, coding))
+        workers ! Broadcast(Master.GenerateTrees(nqFpTrees, coding.codingTable))
         context become waitForTreeGenerationTermination(ctx.numberOfWorkers)
       }
 
   }
 
-  def waitForTreeGenerationTermination(n: Int)(implicit trees: List[ActorRef], quality: Distribution => Strategy): Receive = {
+  def waitForTreeGenerationTermination(n: Int)(implicit trees: List[ActorRef], quality: Distribution => Quality): Receive = {
     case Worker.Terminated =>
       if (n <= 1) {
         log.info(progress("sec needed for tree generation"))

@@ -13,7 +13,7 @@ class WriteToText(numberOfItems: Int,
                  )(implicit ctx: Context) {
 
   def write(): Unit = {
-    val outputFile =   ctx.outputFile + ".txt"
+    val outputFile = ctx.outputFile + ".txt"
     outputFile.toFile.overwrite("")
     outputFile.toFile.overwrite("")
     if (kBestSubGroups.isEmpty) {
@@ -24,13 +24,13 @@ class WriteToText(numberOfItems: Int,
 
       val output =
 //        s"Dataset: ${ctx.dataFiles}\n\n" +
-          s"Target:  feature: ${ctx.targetName}, values: $targetValues\n" +
+        s"Target:  feature: ${ctx.targetName}, values: $targetValues\n" +
           s"Quality function: ${ctx.qualityMode}\n" +
           s"Number of items: $numberOfItems\n\n" +
           s"TargetValueDistribution: " +
           (ctx.qualityMode match {
             case "Piatetsky" =>
-              s"$targetValues= ${rootDistribution(1)} "
+              s"$targetValues: ${rootDistribution(1)} "
             case "Binomial" =>
               s"$targetValues= ${rootDistribution(1)} "
             case _ =>
@@ -43,18 +43,17 @@ class WriteToText(numberOfItems: Int,
               s"\n${index + 1}. " +
                 sg.group.sorted.map(decode).map(_.toString).reduce(_ + " & " + _) +
                 s"\nQuality = ${sg.quality}" +
-                s"\nSize = ${sg.distr.sum}, Generality = ${sg.generality}, " +
-                (ctx.qualityMode match {
+                s"\nSize = ${sg.distr.sum}, Generality = ${sg.generality}, " + {
+                val n = sg.distr.sum.toDouble
+                ctx.qualityMode match {
                   case "Piatetsky" =>
-                    val n = sg.distr.sum.toDouble
                     s"p = ${sg.distr(0).toDouble / n}"
                   case "Binomial" =>
-                    val n = sg.distr.sum.toDouble
                     s"p = ${sg.distr(0).toDouble / n}"
                   case _ =>
-                    val n = sg.distr.sum.toDouble
                     (0 until ctx.numberOfTargetGroups).map(i => s"p($i) = ${sg.distr(i).toDouble / n}").reduce(_ + ", " + _)
-                }) + "\n"
+                }
+              } + "\n"
           }.reduce(_ + _) +
           s"\nConsidered $subgroupCounter subgroups of depth <= ${ctx.lengthOfSubgroups} out of $numberOfNodes with maxDepth ${ctx.lengthOfSubgroups}," +
           s" i.e. ${subgroupCounter.toDouble / numberOfNodes.toDouble * 100.0} % \n"

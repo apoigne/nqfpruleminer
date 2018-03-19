@@ -7,7 +7,7 @@ import de.fhg.iais.nqfpruleminer.io.Reader
 import scala.collection.mutable
 
 object Worker {
-  case class Count(table: Map[Value, Distribution], rootDistr: Distribution)
+  case class Count(table: Map[Item, Distribution], rootDistr: Distribution)
   case object Terminated
 
   class Table {
@@ -20,15 +20,16 @@ object Worker {
     def add(v: DataFrame): Unit = {
       try {
         c(last / size)(last % size) = v
-        last += 1
       } catch {
         case _: IndexOutOfBoundsException =>
           expand()
           add(v)
       }
+      last += 1
     }
 
     def foreach(f: DataFrame => Unit): Unit = c.foreach(a => a.foreach(inst => if (inst != null) f(inst)))
+    def update(f: DataFrame => DataFrame): Unit = c.foreach(a => for (i <- a.indices) if (a(i) != null) a(i) = f(a(i)))
   }
 
   def props(listener: ActorRef)(implicit ctx: Context): Props =
@@ -38,16 +39,19 @@ object Worker {
 class Worker(listener: ActorRef)(implicit ctx: Context) extends Actor with ActorLogging {
   log.info(s"Started.")
 
-  private val distributions = collection.mutable.Map[Value, Distribution]()
+  private val distributions = collection.mutable.Map[Item, Distribution]()
   private val instances = new Worker.Table
   private val rootDistr: Distribution = Distribution()(ctx.numberOfTargetGroups)
 
   def receive: Receive = {
-    case dataFrame@DataFrame(label, values) =>
+    case DataFrame(label, baseItems, derivedItems) =>
       rootDistr.add(label)
-      instances.add(dataFrame)
+      val baseValues = baseItems.map(_.value)
+      val filteredBaseItems = baseItems.filter(item => ctx.allFeatures(item.position).condition.eval(baseValues))
+      val allItems = filteredBaseItems ++ derivedItems
+      instances.add(DataFrame(label, filteredBaseItems, derivedItems))
 //      log.debug(frequencies.toString)
-      values.foreach(
+      allItems.foreach(
         item =>
           distributions get item match {
             case None => distributions += (item -> Distribution(label)(ctx.numberOfTargetGroups))
@@ -56,14 +60,15 @@ class Worker(listener: ActorRef)(implicit ctx: Context) extends Actor with Actor
       )
     case Reader.Terminated =>
       log.info("Reader.Terminated")
-      log.debug(s"table.size ${instances.last}")
+      log.info(s"table.size ${instances.last}")
       listener ! Worker.Count(distributions.toMap, rootDistr)
-    case Master.GenerateTrees(nqFpTrees, coding) =>
+    case Master.GenerateTrees(nqFpTrees, codingTable) =>
       instances.foreach {
-        case DataFrame(label, values) =>
-          if (values.nonEmpty) {
+        case DataFrame(label, baseItems, derivedItems) =>
+          val allItems = baseItems ++ derivedItems
+          if (allItems.nonEmpty) {
             rootDistr.add(label)
-            val sortedInstance = values.flatMap(coding.encode).sortWith(_ < _)  // encoding is "partial"
+            val sortedInstance = baseItems.flatMap(codingTable.get).sortWith(_ < _)  // encoding is "partial"
             for ((range, tree) <- nqFpTrees) {
               val instance = sortedInstance.filter(_ < range.end)
               if (instance.exists(_ >= range.start)) {

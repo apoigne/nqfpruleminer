@@ -22,7 +22,7 @@ class Distribution(val numberOfTargetGroups: Int) {
 
   def positives: Array[Int] = distr.drop(1)
 
-  def probability: Array[Double] = distr.drop(1).map(_ / sum.toDouble)
+  def probability: Array[Double] = distr.map(_ / sum.toDouble)
 
   def toList: IndexedSeq[Int] = distr.toIndexedSeq
 

@@ -24,7 +24,7 @@ trait Provider {
   def next: Array[String]
   val targetIndex: Int
   val timeIndex: Option[Int]
-  val featureToPosition: List[(Feature, Int)]
+  val featureToPosition: Vector[(Feature, Int)]
 }
 
 class CsvProvider(data: Provider.Csv)(implicit ctx: Context) extends Provider {
@@ -38,8 +38,8 @@ class CsvProvider(data: Provider.Csv)(implicit ctx: Context) extends Provider {
       Array[String]()
     }
 
-  val featureToPosition: List[(Feature, Int)] =
-    ctx.baseFeatures.map {
+  val featureToPosition: Vector[(Feature, Int)] =
+    ctx.simpleFeatures.map {
       feature =>
         if (header.nonEmpty) {
           val columnIndex = header.indexOf(feature.name)
@@ -54,8 +54,8 @@ class CsvProvider(data: Provider.Csv)(implicit ctx: Context) extends Provider {
         }
     }
 
-  val targetIndex: Int = if (header.nonEmpty) header.indexOf(ctx.targetName) else ctx.baseFeatures.indexWhere(_.name == ctx.targetName)
-  val timeIndex: Option[Int] = ctx.timeName.map(tn => if (header.nonEmpty) header.indexOf(tn) else ctx.baseFeatures.indexWhere(_.name == tn))
+  val targetIndex: Int = if (header.nonEmpty) header.indexOf(ctx.targetName) else ctx.simpleFeatures.indexWhere(_.name == ctx.targetName)
+  val timeIndex: Option[Int] = ctx.timeName.map(tn => if (header.nonEmpty) header.indexOf(tn) else ctx.simpleFeatures.indexWhere(_.name == tn))
 
   def hasNext: Boolean = lines.hasNext
   def next: Array[String] = lines.next
@@ -68,15 +68,15 @@ class MySqlProvider(data: Provider.MySql)(implicit ctx: Context) extends Provide
   ConnectionPool.singleton(s"jdbc:mysql://${data.host}:${data.port}/${data.database}", data.user, data.password)
   implicit val session: AutoSession = AutoSession
 
-  val featureToPosition: List[(Feature, Int)] = ctx.baseFeatures.map(feature => (feature, feature.position) )
-  val targetIndex: Int = ctx.baseFeatures.indexWhere(_.name == ctx.targetName)
-  val timeIndex: Option[Int] = ctx.timeName.map(tn => ctx.baseFeatures.indexWhere(_.name == tn))
+  val featureToPosition: Vector[(Feature, Int)] = ctx.simpleFeatures.map(feature => (feature, feature.position) )
+  val targetIndex: Int = ctx.simpleFeatures.indexWhere(_.name == ctx.targetName)
+  val timeIndex: Option[Int] = ctx.timeName.map(tn => ctx.simpleFeatures.indexWhere(_.name == tn))
 
-  private case class Record(values: List[String])
+  private case class Record(values: Vector[String])
   private object Record extends SQLSyntaxSupport[Record] {
     override val tableName: String = data.table
     def apply(e: ResultName[Record])(rs: WrappedResultSet): Record =
-      Record(ctx.baseFeatures.map(feature => rs.string(e.column(feature.name))))
+      Record(ctx.simpleFeatures.map(feature => rs.string(e.column(feature.name))))
   }
 
   private val r = Record.syntax("r")

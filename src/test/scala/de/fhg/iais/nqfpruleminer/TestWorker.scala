@@ -15,7 +15,7 @@ class TestWorker extends FunSuite with TestKitBase with ImplicitSender with Befo
   implicit lazy val system: ActorSystem = ActorSystem("test")
   implicit val timeout: Timeout = 20.seconds
 
-  implicit val ctx: Context = new Context("src/test/resources/testworker.conf", 0, 0)
+  implicit val ctx: Context = new Context("src/test/resources/testworker.conf")
 
   private val provider = io.Provider(ctx.providerData)
   private val p = TestProbe()
@@ -29,11 +29,11 @@ class TestWorker extends FunSuite with TestKitBase with ImplicitSender with Befo
   test("frequencies of worker") {
     reader.run()
     val frequencies = p.expectMsgPF(5.seconds) { case Worker.Count(m, _) => m }
-    val seqID = frequencies.get(Nominal("4712", 1))
+    val seqID = frequencies.get(Valued(Nominal("4712"), 1))
     assert(
       seqID match {
         case None => false
-        case Some(distr) => distr(0) == 5 && distr(1) == 4
+        case Some(distr) => distr(0) == 4 && distr(1) == 1
 
       }
     )

@@ -1,52 +1,70 @@
 package de.fhg.iais.nqfpruleminer
 
 import de.fhg.iais.nqfpruleminer.History.Elem
-import de.fhg.iais.nqfpruleminer.Value.{Label, Position}
+import de.fhg.iais.nqfpruleminer.Item.Position
+import de.fhg.iais.nqfpruleminer.Value.Label
+import de.fhg.iais.utils.TimeFrame.TimeFrame
 import de.fhg.iais.utils.fail
 import org.joda.time.DateTime
 
 import scala.collection.mutable.Map
+import scala.util.{Failure, Success, Try}
 
 object History {
   case class Elem(dateTime: DateTime, value: GroupBy)
 
   def apply(feature: Feature)(implicit ctx: Context): History =
     feature.typ match {
-      case aggregator: DerivedType.AGGREGATE => AggregateHistory(aggregator, feature.position)
-      case aggregator: DerivedType.COUNT => CountHistory(aggregator, feature.position)
+      case aggregator: DerivedType.AGGREGATE =>
+        aggregator.history match {
+          case Left(lengthOfHistory) => new AggregateHistory(aggregator, feature.position) with HistoryByLength
+          case Right(timeFrame) => new AggregateHistory(aggregator, feature.position) with HistoryByTimeframe
+        }
+      case aggregator: DerivedType.COUNT =>
+        aggregator.history match {
+          case Left(lengthOfHistory) => new CountHistory(aggregator, feature.position) with HistoryByLength
+          case Right(timeFrame) => new CountHistory(aggregator, feature.position) with HistoryByTimeframe
+        }
       case typ => fail(s"Wrong aggregation type $typ"); null
     }
 }
 
 trait History {
-  import History._
-
   val aggr: AggregatorType
   val position: Position
 
-  var lastTime: DateTime = DateTime.parse("0")
+  def apply(label: Value.Label, actualTime: DateTime, values: Vector[Valued]): List[Item]
+  def update(value: GroupBy, label: Value.Label): Unit
+  def getAggregatedValues: List[Item]
+  def delete(value: GroupBy): Unit
+}
+
+trait HistoryByTimeframe extends History {
+
   var history: List[Elem] = List[Elem]()
+  private var lastTime: DateTime = DateTime.parse("0")
+  private val timeframe: TimeFrame = aggr.history match {case Left(_) => 0; case Right(t) => t}
 
   override def toString: String =
     if (history.nonEmpty) history.map { case Elem(d, v) => s"(${d.getSecondOfDay}, $v)" }.reduce(_ + "," + _) else "empty history"
 
-  def apply(label: Value.Label, actualTime: DateTime, values: List[Value]): List[Value] = {
-    val indexed = values.toArray
+  def apply(label: Value.Label, actualTime: DateTime, baseItems: Vector[Valued]): List[Item] = {
     val value = aggr match {
-      case aggr: DerivedType.COUNT => GroupBy(aggr.seqIdPos.map(indexed), Group(aggr.positions.map(indexed(_))), label, position)
-      case aggr: DerivedType.AGGREGATE => GroupBy(aggr.seqIdPos.map(indexed), indexed(aggr.position), label, position)
+      case aggr: DerivedType.COUNT =>
+        GroupBy(aggr.seqIdPos.map(baseItems(_)), Group(aggr.positions.map(baseItems(_))), label, position)
+      case aggr: DerivedType.AGGREGATE =>
+        GroupBy(aggr.seqIdPos.map(baseItems(_)), baseItems(aggr.position), label, position)
     }
-    if (label > 0) history :+= Elem(actualTime, value)
-    if (lastTime.compareTo(actualTime) < 0) {
-      clear(actualTime.minusSeconds(aggr.timeFrame))
+    if (label > 0) {
+      history :+= Elem(actualTime, value)
+      update(value, label)
+    }
+    if (actualTime.compareTo(lastTime) > 0) {
+      clear(actualTime.minusSeconds(timeframe))
       lastTime = actualTime
     }
-    update(value, label)
+    getAggregatedValues
   }
-
-  def update(value: GroupBy, label: Value.Label): List[Value]
-
-  def delete(value: GroupBy): Unit
 
   def clear(borderTime: DateTime): Unit = {
     history match {
@@ -57,80 +75,140 @@ trait History {
       case _ =>
     }
   }
-
 }
 
-case class CountHistory(aggr: DerivedType.COUNT, position: Position)(implicit ctx: Context) extends History {
+trait HistoryByLength extends History {
+
+  var history: List[Elem] = List[Elem]()
+  private val lengthOfHistory = aggr.history match {case Left(l) => l; case Right(_) => 0}
+
+  override def toString: String =
+    if (history.nonEmpty) history.map { case Elem(d, v) => s"(${d.getSecondOfDay}, $v)" }.reduce(_ + "," + _) else "empty history"
+
+  def apply(label: Value.Label, actualTime: DateTime, values: Vector[Valued]): List[Item] = {
+    val value = aggr match {
+      case aggr: DerivedType.COUNT => GroupBy(aggr.seqIdPos.map(values(_)), Group(aggr.positions.map(values(_))), label, position)
+      case aggr: DerivedType.AGGREGATE => GroupBy(aggr.seqIdPos.map(values(_)), values(aggr.position), label, position)
+    }
+    if (label > 0) {
+      history :+= Elem(actualTime, value)
+      update(value, label)
+    }
+    history = history.take(lengthOfHistory)
+    getAggregatedValues
+  }
+}
+
+abstract class CountHistory(val aggr: DerivedType.COUNT, val position: Position)(implicit ctx: Context) extends History {
   import scala.collection.mutable.Map
 
-  implicit val numberOfTargetGroups: Int = ctx.numberOfTargetGroups
-  private val distributionMap = Map[Option[Value], Map[Value, Distribution]]()
+  def history: List[Elem]
 
-  def update(groupBy: GroupBy, label: Value.Label): List[Value] = {
-    if (label > 0) {
-      val value = groupBy.value
-      distributionMap get groupBy.seqId match {
-        case None => distributionMap += groupBy.seqId -> Map(value -> Distribution(label))
-        case Some(map) =>
-          map get groupBy.value match {
-            case None => map += groupBy.value -> Distribution(label)
-            case Some(distribution) => distribution.add(label)
-          }
-      }
+  implicit val numberOfTargetGroups: Int = ctx.numberOfTargetGroups
+  private val distributionMap = Map[Option[Item], Map[Item, Distribution]]()
+
+  def update(groupBy: GroupBy, label: Value.Label): Unit = {
+    //    println(s"Count update $groupBy")
+    val value = groupBy.item
+    distributionMap get groupBy.seqId match {
+      case None => distributionMap += groupBy.seqId -> Map(value -> Distribution(label))
+      case Some(map) =>
+        map get groupBy.item match {
+          case None => map += groupBy.item -> Distribution(label)
+          case Some(distribution) => distribution.add(label)
+        }
     }
+//    println(s"distributionMap after update $distributionMap")
+  }
+
+  def getAggregatedValues: List[Item] =
     distributionMap
       .flatMap {
         case (k, m) => m.flatMap {
           case (v, d) =>
             for (i <- 1 until ctx.numberOfTargetGroups;
-                 r = d(i) if aggr.condition(r)
-            ) yield
-              GroupBy(k, Counted(v, if (aggr.existsOnly) None else Some(r), i, position), position)
+                 r = d(i) if aggr.condition(Numeric(r.toDouble))
+            ) yield {
+              r
+              val x = aggr.condition(Numeric(r.toDouble))
+              v match {    // takes case of empty groups, then exists or count operator enclose the seqId
+                case Group(values, _) if values.isEmpty =>
+                  Counted(GroupBy(k, v, i, position), if (aggr.existsOnly) None else Some(r), i, position)
+                case _ =>
+                  GroupBy(k, Counted(v, if (aggr.existsOnly) None else Some(r), i, position), i, position)
+              }
+            }
+
         }
       }.toList.distinct
-  }
 
   def delete(groupBy: GroupBy): Unit = {
-    val distribution = distributionMap(groupBy.seqId)(groupBy.value)
+    //    println(s"Count delete $groupBy")
+    val distribution = Try(distributionMap(groupBy.seqId)) match {
+      case Success(map) =>
+        Try(map(groupBy.item)) match {
+          case Success(x) => x
+          case Failure(e) =>
+            fail(s"Count: $e  \ngroupBy: ${groupBy.item} \nmap: $distributionMap \nhistory: $history"); null
+        }
+      case Failure(e) =>
+        fail(s"Count: $e  \nvalue: $groupBy \nmap: $distributionMap \nhistory: $history"); null
+    }
     distribution.minus(groupBy.label)
-    if (distribution.sum == 0) distributionMap(groupBy.seqId) -= groupBy.value
+    if (distribution.sum == 0) distributionMap(groupBy.seqId) -= groupBy.item
+//    println(s"Count distributionMap $distributionMap")
+
   }
 }
 
-case class AggregateHistory(aggr: DerivedType.AGGREGATE, position: Position)(implicit ctx: Context) extends History {
+abstract class AggregateHistory(val aggr: DerivedType.AGGREGATE, val position: Position)(implicit ctx: Context) extends History {
   private val aggregationOp = aggr.op
 
-  private val aggregationMap = Map[Option[Value], Aggregation]()
+  def history: List[Elem]
+  private val aggregationMap = Map[Option[Item], Aggregation]()
 
-  def getHistory(seqId: Option[Value], label: Label) : () => List[Double] =
-    () => for (Elem(_, GroupBy(_seqId, Numeric(_value, _), _label, _)) <- history if _seqId == seqId && _label == label) yield _value
+  def getHistory(seqId: Option[Item], label: Label): () => List[Double] =
+    () => for (Elem(_, GroupBy(_seqId, Valued(Numeric(_value), _), _label, _)) <- history if _seqId == seqId && _label == label) yield _value
 
-  def update(groupBy: GroupBy, label: Value.Label): List[Value] = {
-    if (label > 0) {
-      val value = groupBy.value.asInstanceOf[Numeric]
-      aggregationMap get groupBy.seqId match {
-        case None =>
-          val aggregation = Aggregation(aggregationOp, getHistory(groupBy.seqId, label))
-          aggregation.plus(value, label)
-          aggregationMap += groupBy.seqId -> aggregation
-        case Some(aggregation) =>
-          aggregation.plus(value, label)
-      }
+  def update(groupBy: GroupBy, label: Value.Label): Unit = {
+    //    println(s"Aggregate update $groupBy")
+    val value = Item.toNumeric(groupBy.item)
+    aggregationMap get groupBy.seqId match {
+      case None =>
+        val aggregation = Aggregation(aggregationOp, getHistory(groupBy.seqId, label))
+        aggregation.plus(value, label)
+        aggregationMap += groupBy.seqId -> aggregation
+      case Some(aggregation) =>
+        aggregation.plus(value, label)
     }
+//    println(s"aggregationMap after update $aggregationMap")
+  }
+
+  def getAggregatedValues: List[Item] =
     aggregationMap
       .flatMap {
         case (k, c) =>
           for (
             i <- 1 until ctx.numberOfTargetGroups;
-            r = c.get(i) if aggr.condition(r)
-          ) yield
-            GroupBy(k, Aggregated(aggregationOp, aggr.position, if (aggr.existsOnly) None else Some(c.get(i)), i, position), position)
-      }
-  }.toList
+            r = c.get(i) if aggr.condition(Numeric(r))
+          ) yield {
+            r
+            val x = aggr.condition(Numeric(r.toDouble))
+            GroupBy(k, Aggregated(aggregationOp, aggr.position, if (aggr.existsOnly) None else Some(c.get(i)), i, position), i, position)
+          }
+      }.toList
 
   def delete(groupBy: GroupBy): Unit = {
-    val aggregation = aggregationMap(groupBy.seqId)
-    aggregation.minus(groupBy.value.asInstanceOf[Numeric], groupBy.label)
+    //    println(s"Aggregate delete $groupBy")
+    val aggregation =
+      Try(aggregationMap(groupBy.seqId)) match {
+        case Success(x) => x
+        case Failure(e) =>
+          fail(s"Aggregate: $e  \ngroupBy: $groupBy \nmap: $aggregationMap \nhistory: $history");
+          null
+      }
+    aggregation.minus(Item.toNumeric(groupBy.item), groupBy.label)
     if (aggregation.sum == 0) aggregationMap -= groupBy.seqId
   }
+
 }

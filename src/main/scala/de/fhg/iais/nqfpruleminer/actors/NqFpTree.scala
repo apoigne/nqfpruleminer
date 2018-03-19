@@ -5,8 +5,8 @@ import de.fhg.iais.nqfpruleminer.Value.Label
 import de.fhg.iais.nqfpruleminer._
 
 object NqFpTree {
-  case class EncodedInstance(label: Label, values: List[Int])
-  case class NoMoreInstances(quality: Distribution => Strategy)
+  case class EncodedInstance(label: Label, values: Vector[Int])
+  case class NoMoreInstances(quality: Distribution => Quality)
   case object Next
   case class Terminated(tree: ActorRef, subgroupCounter: Int)
 
@@ -47,7 +47,7 @@ class NqFpTree(lower: Int, upper: Int, numberOfItems: Int, lengthOfSubgroups: In
   val itemDistributions: Array[Distribution] = Array.tabulate(numberOfItems)(_ => Distribution()) // number of target groups is implicitly defined
   val optimisticEstimate: Array[Array[Double]] = Array.tabulate(lengthOfSubgroups)(_ => Array.fill(numberOfItems)(Double.MaxValue))
 
-  def computeSubgroups(quality: Distribution => Strategy): Receive = {
+  def computeSubgroups(quality: Distribution => Quality): Receive = {
     case Next =>
       subGroup(depth) += 1
       val item = subGroup(depth)
@@ -122,7 +122,7 @@ class NqFpTree(lower: Int, upper: Int, numberOfItems: Int, lengthOfSubgroups: In
       if (node.depth == currentDepth) popParents(node)
     }
 
-  private def estimates(subgroup: List[Int], item: Int, init: Int, quality: Distribution => Strategy): Unit =
+  private def estimates(subgroup: List[Int], item: Int, init: Int, quality: Distribution => Quality): Unit =
     for (_item <- init until item) {
       if (optimisticEstimate(depth)(_item) > minQ) {
         optimisticEstimate(depth)(_item) = checkQuality(_item, subgroup :+ _item, quality)
@@ -132,11 +132,10 @@ class NqFpTree(lower: Int, upper: Int, numberOfItems: Int, lengthOfSubgroups: In
 
   private val bestSubgroups = context.actorSelection("akka://nqfpminer/user/master/bestsubgroups")
 
-  def checkQuality(item: Int, subGroup: List[Int], quality: Distribution => Strategy): Double = {
+  def checkQuality(item: Int, subGroup: List[Int], quality: Distribution => Quality): Double = {
     subgroupCounter += 1
     quality(itemDistributions(item)) match {
-      case Prune => 0.0
-      case Pursue(q, g, oe) =>
+      case Quality(q, g, oe) =>
         if (q > minQ && subGroup.head >= lower) {
           val _subGroup = if (ctx.computeClosureOfSubgroups) computeClosure(headers(item), subGroup) else subGroup
           bestSubgroups ! BestSubGroups.SubGroup(_subGroup, itemDistributions(item).toList, q, g)
@@ -148,7 +147,7 @@ class NqFpTree(lower: Int, upper: Int, numberOfItems: Int, lengthOfSubgroups: In
   var nodeCounter = 0
 
   def addInstance(node: FPnode, distr: Distribution, items: Seq[Int]): Unit = {
-    items match {
+    items.toList match {
       case Nil => ()
       case item :: _items =>
         itemDistributions(item).add(distr)

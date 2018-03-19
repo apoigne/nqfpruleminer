@@ -4,6 +4,7 @@ import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import akka.routing.Broadcast
 import de.fhg.iais.nqfpruleminer._
 import de.fhg.iais.nqfpruleminer.io.Reader
+import de.fhg.iais.utils.fail
 
 import scala.concurrent.ExecutionContextExecutor
 
@@ -13,22 +14,17 @@ object Aggregator {
 
 class Aggregator(listener: ActorRef)(implicit ctx: Context) extends Actor with ActorLogging {
   log.info("Started")
-  val histories: List[History] = ctx.aggregateFeatures.map(feature => History(feature))
+  val histories: Vector[History] = ctx.aggregateFeatures.map(feature => History(feature))
 
   implicit val executor: ExecutionContextExecutor = context.dispatcher
 
   def receive: Receive = {
-    case TimedDataFrame(label, dateTime, values) =>
-//      val aggregatedValuesFutures: List[Future[List[Value]]] = histories.map(history => Future(history(label, dateTime, values)))
-//      Future.sequence(aggregatedValuesFutures) onComplete {
-//        case Success(aggregatedValues) => listener ! DataFrame(label, values ++ aggregatedValues.flatten)
-//        case Failure(e) => log.info(e.getLocalizedMessage)
-//      }
-      val aggregatedValues: List[Value] = histories.flatMap(history => history(label, dateTime, values))
-      listener ! DataFrame(label, values ++ aggregatedValues)
+    case TimedDataFrame(label, dateTime, baseItems, derivedItems) =>
+      val aggregatedValues = histories.map(history => history(label, dateTime, baseItems))
+      listener ! DataFrame(label, baseItems, derivedItems ++ aggregatedValues.flatten)
     case msg@Broadcast(Reader.Terminated) =>
       listener ! msg
-    case x =>
-      log.info(x.toString)
+    case msg: DataFrame =>
+      fail(s"Internal error: aggregator got a dataframe instead of a timed dataframe")
   }
 }

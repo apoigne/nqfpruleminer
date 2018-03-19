@@ -1,11 +1,12 @@
 package de.fhg.iais.nqfpruleminer
 
-import de.fhg.iais.nqfpruleminer.Value.{Label, Position}
+import de.fhg.iais.nqfpruleminer.Item.Position
+import de.fhg.iais.nqfpruleminer.Value.Label
 import org.scalatest.FunSuite
 
 class DiscretizationTest extends FunSuite {
 
-  implicit val ctx: Context = new Context("src/main/resources/connect4.conf", 0, 0)
+  implicit val ctx: Context = new Context("src/main/resources/connect4.conf")
   implicit val position: Position = 0
 
   val l =
@@ -63,7 +64,7 @@ class DiscretizationTest extends FunSuite {
   test("Equal frequency binning test") {
     val bins = EqualFrequency(4).genBins(dm)
     assert(bins.lengthCompare(4) == 0)
-    val d2r: List[(Double, Option[BinRange])] = l.map(x => x -> bins.find(range => range.lo <= x && x < range.hi))
+    val d2r: List[(Double, Option[Bin])] = l.map(x => x -> bins.find(range => range.lo <= x && x < range.hi))
     val d2rMap = d2r.toMap
     assert(d2r.groupBy(_._2).mapValues(_.length)(d2rMap(0.33625348176589487)) == 12)
   }

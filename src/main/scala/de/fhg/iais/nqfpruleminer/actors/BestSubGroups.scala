@@ -3,7 +3,7 @@ package de.fhg.iais.nqfpruleminer.actors
 import akka.actor.{Actor, ActorLogging, Props}
 import akka.util.Timeout
 import de.fhg.iais.nqfpruleminer.io.{WriteToJson, WriteToText}
-import de.fhg.iais.nqfpruleminer.{Coding, Context, Distribution, Value}
+import de.fhg.iais.nqfpruleminer.{Coding, Context, Distribution, Item}
 import de.fhg.iais.utils.fail
 
 import scala.concurrent.ExecutionContextExecutor
@@ -22,7 +22,7 @@ object BestSubGroups {
     Props(classOf[BestSubGroups], numberOfItems, decode, ctx)
 }
 
-class BestSubGroups(numberOfItems: Int, decode: IndexedSeq[Value])(implicit ctx: Context) extends Actor with ActorLogging {
+class BestSubGroups(numberOfItems: Int, decode: IndexedSeq[Item])(implicit ctx: Context) extends Actor with ActorLogging {
   log.info("Started")
 
   import BestSubGroups._

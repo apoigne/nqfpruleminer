@@ -11,8 +11,8 @@ object Dependencies {
   object Version {
     val opencsv = "3.8"
     val scalaTest = "3.0.4"
-    val sprayJson = "1.3.3"
-    val akka = "2.5.9"
+    val sprayJson = "1.3.4"
+    val akka = "2.5.11"
     val config = "1.3.2"
     val clist = "3.3.0"
     val betterFiles = "3.4.0"

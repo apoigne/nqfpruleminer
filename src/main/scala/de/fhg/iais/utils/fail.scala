@@ -27,3 +27,11 @@ object tryWithDefault {
       case Failure(_) => default
     }
 }
+
+object tryOption {
+  def apply[T <: Any](x: => T): Option[T] =
+    Try(x) match {
+      case Success(v) => Some(v)
+      case Failure(_) => None
+    }
+}

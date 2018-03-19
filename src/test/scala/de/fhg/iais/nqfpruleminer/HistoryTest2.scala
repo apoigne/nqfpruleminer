@@ -5,45 +5,65 @@ import org.scalatest.FunSuite
 
 class HistoryTest2 extends FunSuite {
 
-  implicit private val ctx : Context = new Context("src/test/resources/historytest2.conf", 0, 0)
+  implicit private val ctx: Context = new Context("src/test/resources/historytest2.conf")
 
-  val data: List[List[Value]] = List(
-    List(Nominal("TARGET", -1), Nominal("4711", 0), Date(ctx.parseDateTime("1"), -1), Nominal("a", 1), Numeric(1.0, 2)),        // 0
-    List(Nominal("NON_TG", -1), Nominal("4712", 0), Date(ctx.parseDateTime("1"), -1), Nominal("a", 1), Numeric(1.0, 2)),        // 1
-    List(Nominal("NON_TG", -1), Nominal("4721", 0), Date(ctx.parseDateTime("1"), -1), Nominal("a", 1), Numeric(1.0, 2)),        // 2
-    List(Nominal("NON_TG", -1), Nominal("4722", 0), Date(ctx.parseDateTime("1"), -1), Nominal("a", 1), Numeric(1.0, 2)),        // 3
-    List(Nominal("TARGET", -1), Nominal("4711", 0), Date(ctx.parseDateTime("2"), -1), Nominal("a", 1), Numeric(3.0, 2)),        // 4
-    List(Nominal("NON_TG", -1), Nominal("4712", 0), Date(ctx.parseDateTime("2"), -1), Nominal("a", 1), Numeric(1.0, 2)),        // 5
-    List(Nominal("TARGET", -1), Nominal("4721", 0), Date(ctx.parseDateTime("2"), -1), Nominal("a", 1), Numeric(1.0, 2)),        // 6
-    List(Nominal("TARGET", -1), Nominal("4722", 0), Date(ctx.parseDateTime("2"), -1), Nominal("a", 1), Numeric(1.0, 2)),        // 7
-    List(Nominal("TARGET", -1), Nominal("4711", 0), Date(ctx.parseDateTime("3"), -1), Nominal("b", 1), Numeric(1.0, 2)),        // 8
-    List(Nominal("NON_TG", -1), Nominal("4712", 0), Date(ctx.parseDateTime("3"), -1), Nominal("b", 1), Numeric(2.0, 2)),        // 9
-    List(Nominal("NON_TG", -1), Nominal("4721", 0), Date(ctx.parseDateTime("3"), -1), Nominal("b", 1), Numeric(1.0, 2)),        // 10
-    List(Nominal("NON_TG", -1), Nominal("4722", 0), Date(ctx.parseDateTime("3"), -1), Nominal("a", 1), Numeric(1.0, 2)),        // 11
-    List(Nominal("TARGET", -1), Nominal("4711", 0), Date(ctx.parseDateTime("4"), -1), Nominal("b", 1), Numeric(2.0, 2)),        // 12
-    List(Nominal("NON_TG", -1), Nominal("4712", 0), Date(ctx.parseDateTime("4"), -1), Nominal("c", 1), Numeric(2.0, 2)),        // 13
-    List(Nominal("NON_TG", -1), Nominal("4721", 0), Date(ctx.parseDateTime("4"), -1), Nominal("a", 1), Numeric(1.0, 2)),        // 14
-    List(Nominal("NON_TG", -1), Nominal("4722", 0), Date(ctx.parseDateTime("4"), -1), Nominal("c", 1), Numeric(1.0, 2)),        // 15
-    List(Nominal("TARGET", -1), Nominal("4711", 0), Date(ctx.parseDateTime("10"), -1), Nominal("a", 1), Numeric(1.0, 2)),       // 16
-    List(Nominal("TARGET", -1), Nominal("4712", 0), Date(ctx.parseDateTime("10"), -1), Nominal("a", 1), Numeric(1.0, 2)),       // 17
-    List(Nominal("NON_TG", -1), Nominal("4721", 0), Date(ctx.parseDateTime("10"), -1), Nominal("a", 1), Numeric(1.0, 2)),       // 18
+
+  val nonTG = Valued(Nominal("NON_TG"), -1)
+  val target = Valued(Nominal("TARGET"), -1)
+  val nominal4711 = Valued(Nominal("4711"), 0)
+  val nominal4712 = Valued(Nominal("4712"), 0)
+  val nominal4721 = Valued(Nominal("4721"), 0)
+  val nominal4722 = Valued(Nominal("4722"), 0)
+  val time1 = Valued(Date(ctx.parseDateTime("1")), -1)
+  val time2 = Valued(Date(ctx.parseDateTime("2")), -1)
+  val time3 = Valued(Date(ctx.parseDateTime("3")), -1)
+  val time4 = Valued(Date(ctx.parseDateTime("4")), -1)
+  val time10 = Valued(Date(ctx.parseDateTime("10")), -1)
+
+  val nominalA = Valued(Nominal("a"), 1)
+  val nominalB = Valued(Nominal("b"), 1)
+  val nominalC = Valued(Nominal("c"), 1)
+  val numeric1 = Valued(Numeric(1.0), 2)
+  val numeric2 = Valued(Numeric(2.0), 2)
+  val numeric3 = Valued(Numeric(3.0), 2)
+
+  val data: List[List[Valued]] = List(
+    List(target, nominal4711, time1, nominalA, numeric1),        // 0
+    List(nonTG, nominal4712, time1, nominalA, numeric1),        // 1
+    List(nonTG, nominal4721, time1, nominalA, numeric1),        // 2
+    List(nonTG, nominal4722, time1, nominalA, numeric1),        // 3
+    List(target, nominal4711, time2, nominalA, numeric3),        // 4
+    List(nonTG, nominal4712, time2, nominalA, numeric1),        // 5
+    List(target, nominal4721, time2, nominalA, numeric1),        // 6
+    List(target, nominal4722, time2, nominalA, numeric1),        // 7
+    List(target, nominal4711, time3, nominalB, numeric1),        // 8
+    List(nonTG, nominal4712, time3, nominalB, numeric2),        // 9
+    List(nonTG, nominal4721, time3, nominalB, numeric1),        // 10
+    List(nonTG, nominal4722, time3, nominalA, numeric1),        // 11
+    List(target, nominal4711, time4, nominalB, numeric2),        // 12
+    List(nonTG, nominal4712, time4, nominalC, numeric2),        // 13
+    List(nonTG, nominal4721, time4, nominalA, numeric1),        // 14
+    List(nonTG, nominal4722, time4, nominalC, numeric1),        // 15
+    List(target, nominal4711, time10, nominalA, numeric1),       // 16
+    List(target, nominal4712, time10, nominalA, numeric1),       // 17
+    List(nonTG, nominal4721, time10, nominalA, numeric1),       // 18
   )
 
   private val histories =
     ctx.aggregateFeatures.map(
       feature =>
         feature.typ match {
-          case typ: DerivedType.COUNT => CountHistory(typ, feature.position)
-          case typ: DerivedType.AGGREGATE => AggregateHistory(typ, feature.position)
+          case typ: DerivedType.COUNT => new CountHistory(typ, feature.position) with HistoryByTimeframe
+          case typ: DerivedType.AGGREGATE => new AggregateHistory(typ, feature.position) with HistoryByTimeframe
         }
     )
 
-  def toTarget(target: Value): Int = target match {case Nominal("TARGET", _) => 1; case _ => 0}
-  def toTimestamp(ts: Date): DateTime = ts.value
+  def toTarget(target: Valued): Int = target.value match {case Nominal("TARGET") => 1; case _ => 0}
+  def toTimestamp(ts: Valued): DateTime = ts.value match {case Date(d) => d; case _ => null}
 
-  private def step(instance: List[Value]) = {
+  private def step(instance: List[Valued]) = {
     for (history <- histories) yield {
-      history(toTarget(instance.head), toTimestamp(instance(2).asInstanceOf[Date]), List(instance(1), instance(3), instance(4)))
+      history(toTarget(instance.head), toTimestamp(instance(2)), Vector(instance(1), instance(3), instance(4)))
     }
   }
 
@@ -53,11 +73,11 @@ class HistoryTest2 extends FunSuite {
       val result = step(data.head)
       assert(
         result.head ==
-          List(GroupBy(Some(Nominal("4711", 0)), Aggregated(AggregationOp.Max, 2, Some(1.0), 1, 3), 3, -1))
+          List(GroupBy(Some(nominal4711), Aggregated(AggregationOp.Max, 2, Some(1.0), 1, 3), 1, 3))
       )
       assert(result(1).toSet ==
         Set(
-          GroupBy(Some(Nominal("4711", 0)), Aggregated(AggregationOp.Mean, 2, Some(1.0), 1, 4), 4, -1)
+          GroupBy(Some(nominal4711), Aggregated(AggregationOp.Mean, 2, Some(1.0), 1, 4), 1, 4)
         )
       )
     }
@@ -66,11 +86,11 @@ class HistoryTest2 extends FunSuite {
       val result = step(data(1))
       assert(
         result.head ==
-          List(GroupBy(Some(Nominal("4711", 0)), Aggregated(AggregationOp.Max, 2, Some(1.0), 1, 3), 3, -1))
+          List(GroupBy(Some(nominal4711), Aggregated(AggregationOp.Max, 2, Some(1.0), 1, 3), 1, 3))
       )
       assert(result(1).toSet ==
         Set(
-          GroupBy(Some(Nominal("4711", 0)), Aggregated(AggregationOp.Mean, 2, Some(1.0), 1, 4), 4, -1)
+          GroupBy(Some(nominal4711), Aggregated(AggregationOp.Mean, 2, Some(1.0), 1, 4), 1, 4)
         )
       )
     }
@@ -79,11 +99,11 @@ class HistoryTest2 extends FunSuite {
       val result = step(data(2))
       assert(
         result.head ==
-          List(GroupBy(Some(Nominal("4711", 0)), Aggregated(AggregationOp.Max, 2, Some(1.0), 1, 3), 3, -1))
+          List(GroupBy(Some(nominal4711), Aggregated(AggregationOp.Max, 2, Some(1.0), 1, 3), 1, 3))
       )
       assert(result(1).toSet ==
         Set(
-          GroupBy(Some(Nominal("4711", 0)), Aggregated(AggregationOp.Mean, 2, Some(1.0), 1, 4), 4, -1)
+          GroupBy(Some(nominal4711), Aggregated(AggregationOp.Mean, 2, Some(1.0), 1, 4), 1, 4)
         )
       )
     }
@@ -93,11 +113,11 @@ class HistoryTest2 extends FunSuite {
       val result = step(data(3))
       assert(
         result.head ==
-          List(GroupBy(Some(Nominal("4711", 0)), Aggregated(AggregationOp.Max, 2, Some(1.0), 1, 3), 3, -1))
+          List(GroupBy(Some(nominal4711), Aggregated(AggregationOp.Max, 2, Some(1.0), 1, 3), 1, 3))
       )
       assert(result(1).toSet ==
         Set(
-          GroupBy(Some(Nominal("4711", 0)), Aggregated(AggregationOp.Mean, 2, Some(1.0), 1, 4), 4, -1)
+          GroupBy(Some(nominal4711), Aggregated(AggregationOp.Mean, 2, Some(1.0), 1, 4), 1, 4)
         )
       )
     }
@@ -106,11 +126,11 @@ class HistoryTest2 extends FunSuite {
       val result = step(data(4))
       assert(
         result.head ==
-          List(GroupBy(Some(Nominal("4711", 0)), Aggregated(AggregationOp.Max, 2, Some(3.0), 1, 3), 3, -1))
+          List(GroupBy(Some(nominal4711), Aggregated(AggregationOp.Max, 2, Some(3.0), 1, 3), 1, 3))
       )
       assert(result(1).toSet ==
         Set(
-          GroupBy(Some(Nominal("4711", 0)), Aggregated(AggregationOp.Mean, 2, Some(2.0), 1, 4), 4, -1)
+          GroupBy(Some(nominal4711), Aggregated(AggregationOp.Mean, 2, Some(2.0), 1, 4), 1, 4)
         )
       )
     }
@@ -119,11 +139,11 @@ class HistoryTest2 extends FunSuite {
       val result = step(data(5))
       assert(
         result.head ==
-          List(GroupBy(Some(Nominal("4711", 0)), Aggregated(AggregationOp.Max, 2, Some(3.0), 1, 3), 3, -1))
+          List(GroupBy(Some(nominal4711), Aggregated(AggregationOp.Max, 2, Some(3.0), 1, 3), 1, 3))
       )
       assert(result(1).toSet ==
         Set(
-          GroupBy(Some(Nominal("4711", 0)), Aggregated(AggregationOp.Mean, 2, Some(2.0), 1, 4), 4, -1)
+          GroupBy(Some(nominal4711), Aggregated(AggregationOp.Mean, 2, Some(2.0), 1, 4), 1, 4)
         )
       )
     }
@@ -133,14 +153,14 @@ class HistoryTest2 extends FunSuite {
       assert(
         result.head.toSet ==
           Set(
-            GroupBy(Some(Nominal("4711", 0)), Aggregated(AggregationOp.Max, 2, Some(3.0), 1, 3), 3, -1),
-            GroupBy(Some(Nominal("4721", 0)), Aggregated(AggregationOp.Max, 2, Some(1.0), 1, 3), 3, -1)
+            GroupBy(Some(nominal4711), Aggregated(AggregationOp.Max, 2, Some(3.0), 1, 3), 1, 3),
+            GroupBy(Some(nominal4721), Aggregated(AggregationOp.Max, 2, Some(1.0), 1, 3), 1, 3)
           )
       )
       assert(result(1).toSet ==
         Set(
-          GroupBy(Some(Nominal("4711", 0)), Aggregated(AggregationOp.Mean, 2, Some(2.0), 1, 4), 4, -1),
-          GroupBy(Some(Nominal("4721", 0)), Aggregated(AggregationOp.Mean, 2, Some(1.0), 1, 4), 4, -1)
+          GroupBy(Some(nominal4711), Aggregated(AggregationOp.Mean, 2, Some(2.0), 1, 4), 1, 4),
+          GroupBy(Some(nominal4721), Aggregated(AggregationOp.Mean, 2, Some(1.0), 1, 4), 1, 4)
         )
       )
     }
@@ -150,16 +170,16 @@ class HistoryTest2 extends FunSuite {
       assert(
         result.head.toSet ==
           Set(
-            GroupBy(Some(Nominal("4711", 0)), Aggregated(AggregationOp.Max, 2, Some(3.0), 1, 3), 3, -1),
-            GroupBy(Some(Nominal("4721", 0)), Aggregated(AggregationOp.Max, 2, Some(1.0), 1, 3), 3, -1),
-            GroupBy(Some(Nominal("4722", 0)), Aggregated(AggregationOp.Max, 2, Some(1.0), 1, 3), 3, -1)
+            GroupBy(Some(nominal4711), Aggregated(AggregationOp.Max, 2, Some(3.0), 1, 3), 1, 3),
+            GroupBy(Some(nominal4721), Aggregated(AggregationOp.Max, 2, Some(1.0), 1, 3), 1, 3),
+            GroupBy(Some(nominal4722), Aggregated(AggregationOp.Max, 2, Some(1.0), 1, 3), 1, 3)
           )
       )
       assert(result(1).toSet ==
         Set(
-          GroupBy(Some(Nominal("4711", 0)), Aggregated(AggregationOp.Mean, 2, Some(2.0), 1, 4), 4, -1),
-          GroupBy(Some(Nominal("4721", 0)), Aggregated(AggregationOp.Mean, 2, Some(1.0), 1, 4), 4, -1),
-          GroupBy(Some(Nominal("4722", 0)), Aggregated(AggregationOp.Mean, 2, Some(1.0), 1, 4), 4, -1)
+          GroupBy(Some(nominal4711), Aggregated(AggregationOp.Mean, 2, Some(2.0), 1, 4), 1, 4),
+          GroupBy(Some(nominal4721), Aggregated(AggregationOp.Mean, 2, Some(1.0), 1, 4), 1, 4),
+          GroupBy(Some(nominal4722), Aggregated(AggregationOp.Mean, 2, Some(1.0), 1, 4), 1, 4)
         )
       )
     }
@@ -169,16 +189,16 @@ class HistoryTest2 extends FunSuite {
       assert(
         result.head.toSet ==
           Set(
-            GroupBy(Some(Nominal("4711", 0)), Aggregated(AggregationOp.Max, 2, Some(3.0), 1, 3), 3, -1),
-            GroupBy(Some(Nominal("4721", 0)), Aggregated(AggregationOp.Max, 2, Some(1.0), 1, 3), 3, -1),
-            GroupBy(Some(Nominal("4722", 0)), Aggregated(AggregationOp.Max, 2, Some(1.0), 1, 3), 3, -1)
+            GroupBy(Some(nominal4711), Aggregated(AggregationOp.Max, 2, Some(3.0), 1, 3), 1, 3),
+            GroupBy(Some(nominal4721), Aggregated(AggregationOp.Max, 2, Some(1.0), 1, 3), 1, 3),
+            GroupBy(Some(nominal4722), Aggregated(AggregationOp.Max, 2, Some(1.0), 1, 3), 1, 3)
           )
       )
       assert(result(1).toSet ==
         Set(
-          GroupBy(Some(Nominal("4711", 0)), Aggregated(AggregationOp.Mean, 2, Some(5.0/ 3.0), 1, 4), 4, -1),
-          GroupBy(Some(Nominal("4721", 0)), Aggregated(AggregationOp.Mean, 2, Some(1.0), 1, 4), 4, -1),
-          GroupBy(Some(Nominal("4722", 0)), Aggregated(AggregationOp.Mean, 2, Some(1.0), 1, 4), 4, -1)
+          GroupBy(Some(nominal4711), Aggregated(AggregationOp.Mean, 2, Some(5.0 / 3.0), 1, 4), 1, 4),
+          GroupBy(Some(nominal4721), Aggregated(AggregationOp.Mean, 2, Some(1.0), 1, 4), 1, 4),
+          GroupBy(Some(nominal4722), Aggregated(AggregationOp.Mean, 2, Some(1.0), 1, 4), 1, 4)
         )
       )
     }
@@ -188,16 +208,16 @@ class HistoryTest2 extends FunSuite {
       assert(
         result.head.toSet ==
           Set(
-            GroupBy(Some(Nominal("4711", 0)), Aggregated(AggregationOp.Max, 2, Some(3.0), 1, 3), 3, -1),
-            GroupBy(Some(Nominal("4721", 0)), Aggregated(AggregationOp.Max, 2, Some(1.0), 1, 3), 3, -1),
-            GroupBy(Some(Nominal("4722", 0)), Aggregated(AggregationOp.Max, 2, Some(1.0), 1, 3), 3, -1)
+            GroupBy(Some(nominal4711), Aggregated(AggregationOp.Max, 2, Some(3.0), 1, 3), 1, 3),
+            GroupBy(Some(nominal4721), Aggregated(AggregationOp.Max, 2, Some(1.0), 1, 3), 1, 3),
+            GroupBy(Some(nominal4722), Aggregated(AggregationOp.Max, 2, Some(1.0), 1, 3), 1, 3)
           )
       )
       assert(result(1).toSet ==
         Set(
-          GroupBy(Some(Nominal("4711", 0)), Aggregated(AggregationOp.Mean, 2, Some(5.0/ 3.0), 1, 4), 4, -1),
-          GroupBy(Some(Nominal("4721", 0)), Aggregated(AggregationOp.Mean, 2, Some(1.0), 1, 4), 4, -1),
-          GroupBy(Some(Nominal("4722", 0)), Aggregated(AggregationOp.Mean, 2, Some(1.0), 1, 4), 4, -1)
+          GroupBy(Some(nominal4711), Aggregated(AggregationOp.Mean, 2, Some(5.0 / 3.0), 1, 4), 1, 4),
+          GroupBy(Some(nominal4721), Aggregated(AggregationOp.Mean, 2, Some(1.0), 1, 4), 1, 4),
+          GroupBy(Some(nominal4722), Aggregated(AggregationOp.Mean, 2, Some(1.0), 1, 4), 1, 4)
         )
       )
     }
@@ -207,16 +227,16 @@ class HistoryTest2 extends FunSuite {
       assert(
         result.head.toSet ==
           Set(
-            GroupBy(Some(Nominal("4711", 0)), Aggregated(AggregationOp.Max, 2, Some(3.0), 1, 3), 3, -1),
-            GroupBy(Some(Nominal("4721", 0)), Aggregated(AggregationOp.Max, 2, Some(1.0), 1, 3), 3, -1),
-            GroupBy(Some(Nominal("4722", 0)), Aggregated(AggregationOp.Max, 2, Some(1.0), 1, 3), 3, -1)
+            GroupBy(Some(nominal4711), Aggregated(AggregationOp.Max, 2, Some(3.0), 1, 3), 1, 3),
+            GroupBy(Some(nominal4721), Aggregated(AggregationOp.Max, 2, Some(1.0), 1, 3), 1, 3),
+            GroupBy(Some(nominal4722), Aggregated(AggregationOp.Max, 2, Some(1.0), 1, 3), 1, 3)
           )
       )
       assert(result(1).toSet ==
         Set(
-          GroupBy(Some(Nominal("4711", 0)), Aggregated(AggregationOp.Mean, 2, Some(5.0/ 3.0), 1, 4), 4, -1),
-          GroupBy(Some(Nominal("4721", 0)), Aggregated(AggregationOp.Mean, 2, Some(1.0), 1, 4), 4, -1),
-          GroupBy(Some(Nominal("4722", 0)), Aggregated(AggregationOp.Mean, 2, Some(1.0), 1, 4), 4, -1)
+          GroupBy(Some(nominal4711), Aggregated(AggregationOp.Mean, 2, Some(5.0 / 3.0), 1, 4), 1, 4),
+          GroupBy(Some(nominal4721), Aggregated(AggregationOp.Mean, 2, Some(1.0), 1, 4), 1, 4),
+          GroupBy(Some(nominal4722), Aggregated(AggregationOp.Mean, 2, Some(1.0), 1, 4), 1, 4)
         )
       )
     }
@@ -226,16 +246,16 @@ class HistoryTest2 extends FunSuite {
       assert(
         result.head.toSet ==
           Set(
-            GroupBy(Some(Nominal("4711", 0)), Aggregated(AggregationOp.Max, 2, Some(3.0), 1, 3), 3, -1),
-            GroupBy(Some(Nominal("4721", 0)), Aggregated(AggregationOp.Max, 2, Some(1.0), 1, 3), 3, -1),
-            GroupBy(Some(Nominal("4722", 0)), Aggregated(AggregationOp.Max, 2, Some(1.0), 1, 3), 3, -1)
+            GroupBy(Some(nominal4711), Aggregated(AggregationOp.Max, 2, Some(3.0), 1, 3), 1, 3),
+            GroupBy(Some(nominal4721), Aggregated(AggregationOp.Max, 2, Some(1.0), 1, 3), 1, 3),
+            GroupBy(Some(nominal4722), Aggregated(AggregationOp.Max, 2, Some(1.0), 1, 3), 1, 3)
           )
       )
       assert(result(1).toSet ==
         Set(
-          GroupBy(Some(Nominal("4711", 0)), Aggregated(AggregationOp.Mean, 2, Some(5.0/ 3.0), 1, 4), 4, -1),
-          GroupBy(Some(Nominal("4721", 0)), Aggregated(AggregationOp.Mean, 2, Some(1.0), 1, 4), 4, -1),
-          GroupBy(Some(Nominal("4722", 0)), Aggregated(AggregationOp.Mean, 2, Some(1.0), 1, 4), 4, -1)
+          GroupBy(Some(nominal4711), Aggregated(AggregationOp.Mean, 2, Some(5.0 / 3.0), 1, 4), 1, 4),
+          GroupBy(Some(nominal4721), Aggregated(AggregationOp.Mean, 2, Some(1.0), 1, 4), 1, 4),
+          GroupBy(Some(nominal4722), Aggregated(AggregationOp.Mean, 2, Some(1.0), 1, 4), 1, 4)
         )
       )
     }
@@ -245,14 +265,14 @@ class HistoryTest2 extends FunSuite {
       assert(
         result.head.toSet ==
           Set(
-            GroupBy(Some(Nominal("4711", 0)), Aggregated(AggregationOp.Max, 2, Some(2.0), 1, 3), 3, -1)
+            GroupBy(Some(nominal4711), Aggregated(AggregationOp.Max, 2, Some(2.0), 1, 3), 1, 3)
           )
       )
       assert(result(1).toSet ==
         Set(
-          GroupBy(Some(Nominal("4711", 0)), Aggregated(AggregationOp.Mean, 2, Some(7.0/4.0), 1, 4), 4, -1),
-          GroupBy(Some(Nominal("4721", 0)), Aggregated(AggregationOp.Mean, 2, Some(1.0), 1, 4), 4, -1),
-          GroupBy(Some(Nominal("4722", 0)), Aggregated(AggregationOp.Mean, 2, Some(1.0), 1, 4), 4, -1)
+          GroupBy(Some(nominal4711), Aggregated(AggregationOp.Mean, 2, Some(7.0 / 4.0), 1, 4), 1, 4),
+          GroupBy(Some(nominal4721), Aggregated(AggregationOp.Mean, 2, Some(1.0), 1, 4), 1, 4),
+          GroupBy(Some(nominal4722), Aggregated(AggregationOp.Mean, 2, Some(1.0), 1, 4), 1, 4)
         )
       )
     }
@@ -262,14 +282,14 @@ class HistoryTest2 extends FunSuite {
       assert(
         result.head.toSet ==
           Set(
-            GroupBy(Some(Nominal("4711", 0)), Aggregated(AggregationOp.Max, 2, Some(2.0), 1, 3), 3, -1)
+            GroupBy(Some(nominal4711), Aggregated(AggregationOp.Max, 2, Some(2.0), 1, 3), 1, 3)
           )
       )
       assert(result(1).toSet ==
         Set(
-          GroupBy(Some(Nominal("4711", 0)), Aggregated(AggregationOp.Mean, 2, Some(7.0/4.0), 1, 4), 4, -1),
-          GroupBy(Some(Nominal("4721", 0)), Aggregated(AggregationOp.Mean, 2, Some(1.0), 1, 4), 4, -1),
-          GroupBy(Some(Nominal("4722", 0)), Aggregated(AggregationOp.Mean, 2, Some(1.0), 1, 4), 4, -1)
+          GroupBy(Some(nominal4711), Aggregated(AggregationOp.Mean, 2, Some(7.0 / 4.0), 1, 4), 1, 4),
+          GroupBy(Some(nominal4721), Aggregated(AggregationOp.Mean, 2, Some(1.0), 1, 4), 1, 4),
+          GroupBy(Some(nominal4722), Aggregated(AggregationOp.Mean, 2, Some(1.0), 1, 4), 1, 4)
         )
       )
     }
@@ -279,14 +299,14 @@ class HistoryTest2 extends FunSuite {
       assert(
         result.head.toSet ==
           Set(
-            GroupBy(Some(Nominal("4711", 0)), Aggregated(AggregationOp.Max, 2, Some(2.0), 1, 3), 3, -1)
+            GroupBy(Some(nominal4711), Aggregated(AggregationOp.Max, 2, Some(2.0), 1, 3), 1, 3)
           )
       )
       assert(result(1).toSet ==
         Set(
-          GroupBy(Some(Nominal("4711", 0)), Aggregated(AggregationOp.Mean, 2, Some(7.0/4.0), 1, 4), 4, -1),
-          GroupBy(Some(Nominal("4721", 0)), Aggregated(AggregationOp.Mean, 2, Some(1.0), 1, 4), 4, -1),
-          GroupBy(Some(Nominal("4722", 0)), Aggregated(AggregationOp.Mean, 2, Some(1.0), 1, 4), 4, -1)
+          GroupBy(Some(nominal4711), Aggregated(AggregationOp.Mean, 2, Some(7.0 / 4.0), 1, 4), 1, 4),
+          GroupBy(Some(nominal4721), Aggregated(AggregationOp.Mean, 2, Some(1.0), 1, 4), 1, 4),
+          GroupBy(Some(nominal4722), Aggregated(AggregationOp.Mean, 2, Some(1.0), 1, 4), 1, 4)
         )
       )
     }
@@ -296,14 +316,14 @@ class HistoryTest2 extends FunSuite {
       assert(
         result.head.toSet ==
           Set(
-            GroupBy(Some(Nominal("4711", 0)), Aggregated(AggregationOp.Max, 2, Some(2.0), 1, 3), 3, -1)
+            GroupBy(Some(nominal4711), Aggregated(AggregationOp.Max, 2, Some(2.0), 1, 3), 1, 3)
           )
       )
       assert(result(1).toSet ==
         Set(
-          GroupBy(Some(Nominal("4711", 0)), Aggregated(AggregationOp.Mean, 2, Some(7.0/4.0), 1, 4), 4, -1),
-          GroupBy(Some(Nominal("4721", 0)), Aggregated(AggregationOp.Mean, 2, Some(1.0), 1, 4), 4, -1),
-          GroupBy(Some(Nominal("4722", 0)), Aggregated(AggregationOp.Mean, 2, Some(1.0), 1, 4), 4, -1)
+          GroupBy(Some(nominal4711), Aggregated(AggregationOp.Mean, 2, Some(7.0 / 4.0), 1, 4), 1, 4),
+          GroupBy(Some(nominal4721), Aggregated(AggregationOp.Mean, 2, Some(1.0), 1, 4), 1, 4),
+          GroupBy(Some(nominal4722), Aggregated(AggregationOp.Mean, 2, Some(1.0), 1, 4), 1, 4)
         )
       )
     }
@@ -313,12 +333,12 @@ class HistoryTest2 extends FunSuite {
       assert(
         result.head ==
           List(
-            GroupBy(Some(Nominal("4711", 0)), Aggregated(AggregationOp.Max, 2, Some(1.0), 1, 3), 3, -1)
+            GroupBy(Some(nominal4711), Aggregated(AggregationOp.Max, 2, Some(1.0), 1, 3), 1, 3)
           )
       )
       assert(result(1).toSet ==
         Set(
-          GroupBy(Some(Nominal("4711", 0)), Aggregated(AggregationOp.Mean, 2, Some(1.0), 1, 4), 4, -1)
+          GroupBy(Some(nominal4711), Aggregated(AggregationOp.Mean, 2, Some(1.0), 1, 4), 1, 4)
         )
       )
     }
@@ -327,14 +347,14 @@ class HistoryTest2 extends FunSuite {
       val result = step(data(17))
       assert(
         result.head.toSet ==
-          Set(GroupBy(Some(Nominal("4711", 0)), Aggregated(AggregationOp.Max, 2, Some(1.0), 1, 3), 3, -1),
-            GroupBy(Some(Nominal("4712", 0)), Aggregated(AggregationOp.Max, 2, Some(1.0), 1, 3), 3, -1)
+          Set(GroupBy(Some(nominal4711), Aggregated(AggregationOp.Max, 2, Some(1.0), 1, 3), 1, 3),
+            GroupBy(Some(nominal4712), Aggregated(AggregationOp.Max, 2, Some(1.0), 1, 3), 1, 3)
           )
       )
       assert(result(1).toSet ==
         Set(
-          GroupBy(Some(Nominal("4711", 0)), Aggregated(AggregationOp.Mean, 2, Some(1.0), 1, 4), 4, -1),
-          GroupBy(Some(Nominal("4712", 0)), Aggregated(AggregationOp.Mean, 2, Some(1.0), 1, 4), 4, -1)
+          GroupBy(Some(nominal4711), Aggregated(AggregationOp.Mean, 2, Some(1.0), 1, 4), 1, 4),
+          GroupBy(Some(nominal4712), Aggregated(AggregationOp.Mean, 2, Some(1.0), 1, 4), 1, 4)
         )
       )
     }
@@ -343,14 +363,14 @@ class HistoryTest2 extends FunSuite {
       val result = step(data(18))
       assert(
         result.head.toSet ==
-          Set(GroupBy(Some(Nominal("4711", 0)), Aggregated(AggregationOp.Max, 2, Some(1.0), 1, 3), 3, -1),
-            GroupBy(Some(Nominal("4712", 0)), Aggregated(AggregationOp.Max, 2, Some(1.0), 1, 3), 3, -1)
+          Set(GroupBy(Some(nominal4711), Aggregated(AggregationOp.Max, 2, Some(1.0), 1, 3), 1, 3),
+            GroupBy(Some(nominal4712), Aggregated(AggregationOp.Max, 2, Some(1.0), 1, 3), 1, 3)
           )
       )
       assert(result(1).toSet ==
         Set(
-          GroupBy(Some(Nominal("4711", 0)), Aggregated(AggregationOp.Mean, 2, Some(1.0), 1, 4), 4, -1),
-          GroupBy(Some(Nominal("4712", 0)), Aggregated(AggregationOp.Mean, 2, Some(1.0), 1, 4), 4, -1)
+          GroupBy(Some(nominal4711), Aggregated(AggregationOp.Mean, 2, Some(1.0), 1, 4), 1, 4),
+          GroupBy(Some(nominal4712), Aggregated(AggregationOp.Mean, 2, Some(1.0), 1, 4), 1, 4)
         )
       )
     }
