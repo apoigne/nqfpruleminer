@@ -1,6 +1,8 @@
 package de.fhg.iais.nqfpruleminer
 
 import de.fhg.iais.nqfpruleminer.Value.Label
+import de.fhg.iais.utils
+import de.fhg.iais.utils.fail
 
 class Distribution(val numberOfTargetGroups: Int) {
   private val distr = Array.fill(numberOfTargetGroups: Int)(0: Int)
@@ -42,6 +44,13 @@ object Distribution {
     val distribution = new Distribution(numberOfTargetGroups)
     for (group <- groups) distribution.distr(group) += 1
     distribution
+  }
+
+  def reduce(distributions: List[Distribution]): Distribution = {
+    utils.fail("List of distributions is empty")
+    val base = distributions.head
+    distributions.drop(1).foreach(distr => base.add(distr))
+    base
   }
 
   implicit def distribution2array(distr: Distribution): Array[Int] = distr.distr

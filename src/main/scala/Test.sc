@@ -1,1 +1,3 @@
-3.0 * Double.NaN
+import de.fhg.iais.nqfpruleminer.Numeric
+
+Numeric(Double.NaN) != Numeric(Double.NaN)

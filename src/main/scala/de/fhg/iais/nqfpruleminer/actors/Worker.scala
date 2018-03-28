@@ -1,13 +1,14 @@
 package de.fhg.iais.nqfpruleminer.actors
 
 import akka.actor.{Actor, ActorLogging, ActorRef, PoisonPill, Props}
-import de.fhg.iais.nqfpruleminer._
+import de.fhg.iais.nqfpruleminer.Item.Position
 import de.fhg.iais.nqfpruleminer.io.Reader
+import de.fhg.iais.nqfpruleminer.{Item, _}
 
 import scala.collection.mutable
 
 object Worker {
-  case class Count(table: Map[Item, Distribution], rootDistr: Distribution)
+  case class Count(table: List[(Item, Distribution)], rootDistr: Distribution)
   case object Terminated
 
   class Table {
@@ -43,14 +44,40 @@ class Worker(listener: ActorRef)(implicit ctx: Context) extends Actor with Actor
   private val instances = new Worker.Table
   private val rootDistr: Distribution = Distribution()(ctx.numberOfTargetGroups)
 
+  private val intervalBinning: Map[Position, List[Bin]] =
+    ctx.simpleFeatures
+      .flatMap(
+        feature =>
+          feature.typ match {
+            case BinningType.INTERVAL(delimiters) => Some(feature.position -> Discretization.delimiters2bins(delimiters))
+            case _ => None
+          }
+      ).toMap
+
+//  println(intervalBinning.toString())
+
   def receive: Receive = {
     case DataFrame(label, baseItems, derivedItems) =>
       rootDistr.add(label)
-      val baseValues = baseItems.map(_.value)
-      val filteredBaseItems = baseItems.filter(item => ctx.allFeatures(item.position).condition.eval(baseValues))
+      val filteredBaseItems =
+        baseItems.filter(
+          item =>
+            (item.value match {case Numeric(v) => !v.isNaN; case NoValue => false; case _ => true})
+              && ctx.allFeatures(item.position).condition.eval(baseItems.map(_.value))
+        )
+          .flatMap {
+            case item@Valued(value: Numeric, position) =>
+              intervalBinning.get(position) match {
+                case Some(bins) =>
+                  value.toBin(bins).map(v => Valued(v, position))
+                case None =>
+                  List(item)
+              }
+            case item => List(item)
+          }
+
       val allItems = filteredBaseItems ++ derivedItems
       instances.add(DataFrame(label, filteredBaseItems, derivedItems))
-//      log.debug(frequencies.toString)
       allItems.foreach(
         item =>
           distributions get item match {
@@ -58,11 +85,11 @@ class Worker(listener: ActorRef)(implicit ctx: Context) extends Actor with Actor
             case Some(distribution) => distribution.add(label)
           }
       )
-    case Reader.Terminated =>
-      log.info("Reader.Terminated")
-      log.info(s"table.size ${instances.last}")
-      listener ! Worker.Count(distributions.toMap, rootDistr)
-    case Master.GenerateTrees(nqFpTrees, codingTable) =>
+    case Reader.Terminated
+    =>
+      listener ! Worker.Count(distributions.toList, rootDistr)
+    case Master.GenerateTrees(nqFpTrees, codingTable)
+    =>
       instances.foreach {
         case DataFrame(label, baseItems, derivedItems) =>
           val allItems = baseItems ++ derivedItems

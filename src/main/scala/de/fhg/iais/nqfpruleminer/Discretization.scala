@@ -4,35 +4,7 @@ import de.fhg.iais.nqfpruleminer.Item.Position
 import de.fhg.iais.nqfpruleminer.Value.Label
 import de.fhg.iais.utils.fail
 
-//sealed trait Discretization {
-//  def delimiters2bins(delimiters: List[Double])(implicit position : Position,  ctx: Context): List[BinRange] = {
-//    val bins : List[BinRange] =
-//      delimiters.distinct.sorted match {
-//        case x :: List(y) => List(BinRange(x, y + 0.0000000001, Distribution(), position))    // to include the maximal value
-//        case x :: y :: _delimiters => BinRange(x, y, Distribution(), position) :: delimiters2bins(y :: _delimiters)
-//        case Nil => Nil
-//        case _ => throw new RuntimeException("Internal error: delimiters2ranges")
-//      }
-//    if (ctx.usesOverlappingIntervals) makeOverlapping(bins) else bins
-//  }
-//
-//  def makeOverlapping(ranges: List[BinRange])(implicit ctx: Context): List[BinRange] = {
-//    // Ranges should be disjoint
-//    def makeOverlapping(ranges: List[BinRange]): List[BinRange] =
-//      ranges match {
-//        case Nil => Nil
-//        case BinRange(lo, _, distributionLo, positionLo) :: _ranges =>
-//          ranges.map { case BinRange(_, hi, distributionHi, positionHi) =>
-//            assert(positionLo == positionHi)
-//            distributionLo.add(distributionHi)
-//            BinRange(lo, hi, distributionLo, positionLo)
-//          } ++ makeOverlapping(_ranges)
-//      }
-//    makeOverlapping(ranges)
-//  }
-//}
-
-sealed trait Discretization {
+object Discretization {
   def delimiters2bins(delimiters: List[Double])(implicit ctx: Context): List[Bin] = {
     val bins: List[Bin] =
       delimiters.distinct.sorted match {
@@ -51,14 +23,16 @@ sealed trait Discretization {
         case Nil =>
           Nil
         case Bin(lo, _) :: _ranges =>
-          ranges.map { case Bin(_, hi) => Bin(lo, hi)} ++ makeOverlapping(_ranges)
+          ranges.map { case Bin(_, hi) => Bin(lo, hi) } ++ makeOverlapping(_ranges)
       }
 
     makeOverlapping(ranges)
   }
 }
 
-//case object NoBinning extends Discretization
+sealed trait Discretization
+
+case object NoBinning extends Discretization
 
 case class Intervals(delimiters: List[Double]) extends Discretization {
 
@@ -66,7 +40,7 @@ case class Intervals(delimiters: List[Double]) extends Discretization {
     val values = for (v <- freqs.keys if !v.isNaN) yield v
     val hi = values.max
     val lo = values.min
-    delimiters2bins(lo :: hi :: delimiters)
+    Discretization.delimiters2bins(lo :: hi :: delimiters)
   }
 }
 
@@ -78,7 +52,7 @@ case class EqualWidth(numberOfBins: Int) extends Discretization {
     val hi = values.max
     val lo = values.min
     val interval = (hi - lo) / numberOfBins
-    delimiters2bins((0 to numberOfBins).map(i => lo + i * interval).toList)
+    Discretization.delimiters2bins((0 to numberOfBins).map(i => lo + i * interval).toList)
   }
 }
 
@@ -109,7 +83,7 @@ case class EqualFrequency(numberOfBins: Int) extends Discretization {
         counter = counterPlusWeight
       }
     }
-    delimiters2bins(values.min +: values.max +: delimiters.toList)
+    Discretization.delimiters2bins(values.min +: values.max +: delimiters.toList)
   }
 }
 
@@ -123,7 +97,7 @@ case class Entropy(numberOfBins: Int) extends Discretization {
     val delimiters = partition(EBin(data), numberOfBins - 1)
     fail(delimiters.lengthCompare(numberOfBins - 1) == 0,
       s"Entropy binning generated ${delimiters.length + 1} bins which is less than $numberOfBins as required.")
-    delimiters2bins(values.min +: values.max +: delimiters)
+    Discretization.delimiters2bins(values.min +: values.max +: delimiters)
   }
 
   private def partition(bin: EBin, depth: Int) = recursiveSplit(Nil, bin, depth).sorted

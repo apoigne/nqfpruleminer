@@ -35,6 +35,7 @@ class Master(implicit ctx: Context) extends Actor with ActorLogging {
 
   def waitForItemsToBeGenerated(n: Int): Receive = {
     case count@Worker.Count(table, distr) =>
+//      log.info(progress("before"))
       table.foreach {
         case (value, distribution) =>
           itemFrequencies get value match {
@@ -42,12 +43,12 @@ class Master(implicit ctx: Context) extends Actor with ActorLogging {
             case Some(_distribution) => _distribution.add(distribution)
           }
       }
+
       rootDistr.add(distr)
       if (n > 1) {
         context become waitForItemsToBeGenerated(n - 1)
       } else {
         log.info(progress("sec needed for counting items"))
-
         val n0 = rootDistr.sum.toDouble
         assert(n0 > 0.0, "There is no item recorded, i.e. n0 == 0")
         val p0 = Array.tabulate(ctx.numberOfTargetGroups)(rootDistr(_).toDouble / n0)
@@ -64,8 +65,7 @@ class Master(implicit ctx: Context) extends Actor with ActorLogging {
 
         // We take the  maxNumberOfItems of items with the best quality
         val filteredItems =
-          itemFrequencies
-            .filter { case (_, _distr) => _distr.probability.forall(_ >= ctx.minP) }
+          itemFrequencies.filter { case (_, _distr) => _distr.probability.forall(_ >= ctx.minP) }
             .mapValues(quality)
             .toList
             .filter({ case (_, Quality(q, g, _)) => g >= ctx.minG })

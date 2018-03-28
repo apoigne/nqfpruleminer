@@ -29,7 +29,7 @@ class TestWorker extends FunSuite with TestKitBase with ImplicitSender with Befo
   test("frequencies of worker") {
     reader.run()
     val frequencies = p.expectMsgPF(5.seconds) { case Worker.Count(m, _) => m }
-    val seqID = frequencies.get(Valued(Nominal("4712"), 1))
+    val seqID = frequencies.toMap.get(Valued(Nominal("4712"), 1))
     assert(
       seqID match {
         case None => false

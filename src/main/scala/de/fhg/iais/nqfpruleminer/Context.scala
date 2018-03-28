@@ -76,42 +76,42 @@ class Context(configFile: String) {
 
   val maxNumberOfItems: Int = tryWithDefault(config getInt "maxNumberOfItems", Int.MaxValue)
 
-  private def genBinnigType(binning: Config) = {
+  private def genBinnigType(s: String, binning: Config): BinningType = {
     val mode = binning.getString("mode")
     mode match {
       case "Entropy" => BinningType.ENTROPY(binning.getInt("bins"))
-      case "Interval" => BinningType.INTERVAL(binning.getDoubleList("intervals").asScala.toList.map(_.toDouble))
       case "EqualWidth" => BinningType.EQUALWIDTH(binning.getInt("bins"))
       case "EqualFrequency" => BinningType.EQUALFREQUENCY(binning.getInt("bins"))
-      case x => fail(s"Wrong binning method $x."); null
+      case "Interval" =>
+        val delimiters = binning.resolveWith(config).getDoubleList("intervals").asScala.toList.map(_.toDouble).sorted
+        fail(delimiters.nonEmpty, s"Empty list of intervals for $s")
+        BinningType.INTERVAL(delimiters)
+      case x => fail(s"Binning method $x not supported."); null
     }
   }
 
   // 'features' comprise the list of all features that are required
   private val features: Vector[Feature] =
-    tryFail {
-      config.getConfigList("features").asScala.toVector.map(
-        feature => {
-          val name = feature.getString("attribute")
-          val typ = SimpleType(feature.getString("typ"))
-          val condition =
-            Try(config.getConfig("condition")) match {
-              case Success(bexp) => Expression.json2boolExpr(bexp)
-              case Failure(_) => TRUE
-            }
-          if (typ == SimpleType.NUMERIC) {
-            val binning = tryWithDefault(Some(feature.getConfig("binning")), None)
-            binning match {
-              case None => Feature(name, typ, condition)
-              case Some(_binning) => Feature(name, genBinnigType(_binning), condition)
-            }
-          } else {
-            Feature(name, typ, condition)
+    tryFail(config.getConfigList("features").asScala.toVector).map(
+      feature => {
+        val name = tryFail(feature.getString("attribute"))
+        val typ = tryFail(SimpleType(feature.getString("typ")))
+        val condition =
+          Try(feature.getConfig("condition")) match {
+            case Success(bexp) => Expression.json2boolExpr(bexp)(this)
+            case Failure(e) => TRUE
           }
+        if (typ == SimpleType.NUMERIC) {
+          val binning = tryWithDefault(Some(feature.getConfig("binning")), None)
+          binning match {
+            case None => Feature(name, typ, condition)
+            case Some(_binning) => Feature(name, genBinnigType(s"attribute $name", _binning), condition)
+          }
+        } else {
+          Feature(name, typ, condition)
         }
-      )
-
-    }
+      }
+    )
 
   private val featureNames = features.map(_.name)
   fail(featureNames.lengthCompare(featureNames.distinct.length) == 0, "There are double occurrences of feature names")
@@ -141,7 +141,7 @@ class Context(configFile: String) {
     features
       .filterNot(feature => feature.name == targetName || timeName.isDefined && feature.name == timeName.get)
 
-  private implicit val attributeToPosition: Map[String, Position] =
+  implicit val attributeToPosition: Map[String, Position] =
     simpleFeaturesNoPosition
       .map(_.name)
       .zipWithIndex
@@ -150,18 +150,13 @@ class Context(configFile: String) {
   val simpleFeatures: Vector[Feature] =
     simpleFeaturesNoPosition
       .map { case Feature(name, typ, condition, _) => Feature(name, typ, condition.updatePosition, attributeToPosition(name)) }
-  //    features
-//      .filterNot(feature => feature.name == targetName || timeName.isDefined && feature.name == timeName.get)
-//      .zipWithIndex
-//      .map { case (Feature(name, typ, condition, _), position) => Feature(name, typ, condition, position) }
-private val attributeToFeature = simpleFeatures.map(feature => feature.name -> feature).toMap
-  //  private val attributeToPosition = attributeToFeature.mapValues(_.position)
+  private val attributeToFeature = simpleFeatures.map(feature => feature.name -> feature).toMap
   private val noFeatures0 = simpleFeatures.length
 
   val instanceFilter: Expression.BoolExpr =
-    Try (config getConfig "instanceFilter") match {
-      case Success(config) => Expression.json2boolExpr(config)
-      case Failure(_)  => TRUE
+    Try(config getConfig "instanceFilter") match {
+      case Success(_config) => Expression.json2boolExpr(_config)(this)
+      case Failure(_) => TRUE
     }
 
   /*
@@ -194,7 +189,7 @@ private val attributeToFeature = simpleFeatures.map(feature => feature.name -> f
           )
           val condition =
             Try(config.getConfig("condition")) match {
-              case Success(bexp) => Expression.json2boolExpr(bexp)
+              case Success(bexp) => Expression.json2boolExpr(bexp)(this)
               case Failure(_) => TRUE
             }
           Feature(s"group(${group.reduce(_ + "," + _)})", DerivedType.GROUP(group.map(attributeToPosition)), condition)
@@ -217,7 +212,7 @@ private val attributeToFeature = simpleFeatures.map(feature => feature.name -> f
               case None => fail(s"Prefix features: The name $name does not occur in the list of features."); null
               case Some(f) => f
             }
-          fail(baseFeature.typ == SimpleType.NOMINAL, s"Typ of the prefix feature with name $name should be nominal.")
+          //          fail(baseFeature.typ == SimpleType.NOMINAL, s"Typ of the prefix feature with name $name should be nominal.")
           val prefixes: List[Int] =
             Try(config.getIntList("prefixes").asScala.toList.map(_.toInt)) match {
               case Failure(_) => fail(s"No prefixes defined for prefix feature $name."); null
@@ -225,9 +220,9 @@ private val attributeToFeature = simpleFeatures.map(feature => feature.name -> f
             }
           val condition =
             Try(config.getConfig("condition")) match {
-            case Success(bexp) => Expression.json2boolExpr(bexp)
-            case Failure(_) => TRUE
-          }
+              case Success(bexp) => Expression.json2boolExpr(bexp)(this)
+              case Failure(_) => TRUE
+            }
           prefixes.map(number => Feature(s"${name}_prefix_$number", DerivedType.PREFIX(number, attributeToPosition(name)), condition))
         }
       )
@@ -237,17 +232,17 @@ private val attributeToFeature = simpleFeatures.map(feature => feature.name -> f
   private val noFeatures2 = noFeatures1 + prefixFeatures.length
 
   val rangeFeatures: Vector[Feature] =
-    tryWithDefault(config.getConfigList("rangeFeatures").asScala.toList, Nil)
+    tryWithDefault(config.getConfigList("rangedFeatures").asScala.toList, Nil)
       .toVector
       .flatMap(
         config => {
-          val name = config.getString("attribute")
+          val name = tryFail(config.getString("attribute"))
           val baseFeature =
             features.find(_.name == name) match {
               case None => fail(s"Range features: The name $name does not occur in the list of features."); null
               case Some(f) => f
             }
-          fail(baseFeature.typ == SimpleType.NUMERIC, s"Typ of the prefix feature with name $name should be numeric.")
+          fail(baseFeature.typ == SimpleType.NUMERIC, s"Typ of the ranged feature with name $name should be numeric.")
           val rangeConfigs: List[Config] =
             Try(config.getConfigList("ranges").asScala.toList) match {
               case Failure(_) => fail(s"No prefixes defined for prefix feature $name."); null
@@ -255,15 +250,15 @@ private val attributeToFeature = simpleFeatures.map(feature => feature.name -> f
             }
           val condition =
             Try(config.getConfig("condition")) match {
-            case Success(bexp) => Expression.json2boolExpr(bexp)
-            case Failure(_) => TRUE
-          }
+              case Success(bexp) => Expression.json2boolExpr(bexp)(this)
+              case Failure(_) => TRUE
+            }
           rangeConfigs
             .map(
               range => {
                 val lo = tryFail(range.getDouble("lo"))
                 val hi = tryFail(range.getDouble("hi"))
-                Feature(s"${name}range($lo,$hi)", DerivedType.RANGE(lo, hi, attributeToPosition(name)), condition)
+                Feature(s"${name}_range($lo,$hi)", DerivedType.RANGE(lo, hi, attributeToPosition(name)), condition)
               }
             )
         }
@@ -296,7 +291,7 @@ private val attributeToFeature = simpleFeatures.map(feature => feature.name -> f
           val existsOnly = tryFail(config.getBoolean("existsOnly"))
           import de.fhg.iais.nqfpruleminer.Expression._
           val timeFrames = tryWithDefault(config.getStringList("history").asScala.toList, Nil)
-          val binning = tryWithDefault(Some(genBinnigType(config.getConfig("binning"))), None)
+          val binning = tryWithDefault(genBinnigType("an aggregator", config.getConfig("binning")), BinningType.NOBINNING)
           val tfs = timeFrames.map(
             timeFrame => {
               timeFrame.last match {
@@ -317,15 +312,21 @@ private val attributeToFeature = simpleFeatures.map(feature => feature.name -> f
               s"Attribute ${attributeToFeature(attributes.head).name} for aggregate feature is not numeric.")
           }
           val positions = attributes.map(attributeToPosition)
-          val condition =
-            (x: Numeric) =>
-              (Try(config.getConfig("condition")) match {
-                case Success(bexp) =>
-                  Expression.json2boolExpr(bexp)
-                case Failure(_) => TRUE
-              })
-                .updatePosition(Map("self" -> 0))
-                .eval(Vector(x))
+          val conditionExpr =
+            Try(config.getConfig("condition")) match {
+              case Success(conf) =>
+                val bexp = Expression.json2boolExpr(conf)(this)
+                val x = bexp.attributes
+                if (bexp.attributes == Set("self"))
+                  bexp
+                else {
+                  fail(s"Only attribute 'self' is allowed in a condition for an aggregator. " +
+                    s"Found: ${bexp.attributes.reduce(_ + "," + _)}")
+                  null
+                }
+              case Failure(_) => TRUE
+            }
+          val condition = (x: Numeric) => conditionExpr.updatePosition(Map("self" -> 0)).eval(Vector(x))
           tfs.map {
             case (timeFrame, tf) =>
               val name = s"Aggregate($timeFrame)"
@@ -344,31 +345,34 @@ private val attributeToFeature = simpleFeatures.map(feature => feature.name -> f
 
   val requiresAggregation: Boolean = aggregateFeatures.nonEmpty
 
-  val allFeatures: Vector[Feature] = simpleFeatures ++ groupFeatures ++ aggregateFeatures ++ prefixFeatures
+  // Important: keep the order since this defines the access to value vectors
+  val allFeatures: Vector[Feature] = simpleFeatures ++ groupFeatures ++ prefixFeatures ++ rangeFeatures ++ aggregateFeatures
+  val noAllFeatures: Int = allFeatures.length
 
   private def typ2binning(typ: BinningType): Discretization =
     typ match {
+      case BinningType.NOBINNING => NoBinning
       case BinningType.ENTROPY(bins) => Entropy(bins)
       case BinningType.INTERVAL(delimiters) => Intervals(delimiters)
       case BinningType.EQUALWIDTH(bins) => EqualWidth(bins)
       case BinningType.EQUALFREQUENCY(bins) => EqualFrequency(bins)
     }
 
-  val binning: Map[Int, Discretization] =
-    simpleFeatures.flatMap(
+  val binning: Map[Position, Discretization] =
+    allFeatures.map(
       feature =>
         feature.typ match {
-          case aggr: DerivedType.AGGREGATE => aggr.binning.map(typ => aggr.position -> typ2binning(typ))
-          case typ: BinningType => Some(feature.position -> typ2binning(typ))
-          case _ => None
+          case aggr: DerivedType.AGGREGATE => feature.position -> typ2binning(aggr.binning)
+          case typ: BinningType => feature.position -> typ2binning(typ)
+          case _ => feature.position -> NoBinning
         }
     ).toMap
 
-  val hasFeaturesToBin: Boolean = binning.nonEmpty
+  val hasFeaturesToBin: Boolean = !binning.forall(_ == None)
 
   val rule: BoolExpr =
     Try(config.getConfig("filter")) match {
-      case Success(config) => Expression.json2boolExpr(config)
+      case Success(_config) => Expression.json2boolExpr(_config)(this)
       case Failure(_) => TRUE
     }
 
