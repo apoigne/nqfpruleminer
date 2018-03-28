@@ -105,13 +105,13 @@ abstract class CountHistory(val aggr: DerivedType.COUNT, val position: Position)
   def history: List[Elem]
 
   implicit val numberOfTargetGroups: Int = ctx.numberOfTargetGroups
-  private val distributionMap = scala.collection.mutable.Map.Map[Option[Item], scala.collection.mutable.MapMap[Item, Distribution]]()
+  private val distributionMap = scala.collection.mutable.Map[Option[Item], scala.collection.mutable.Map[Item, Distribution]]()
 
   def update(groupBy: GroupBy, label: Value.Label): Unit = {
     //    println(s"Count update $groupBy")
     val value = groupBy.item
     distributionMap get groupBy.seqId match {
-      case None => distributionMap += groupBy.seqId -> scala.collection.mutable.MapMap(value -> Distribution(label))
+      case None => distributionMap += groupBy.seqId -> scala.collection.mutable.Map(value -> Distribution(label))
       case Some(map) =>
         map get groupBy.item match {
           case None => map += groupBy.item -> Distribution(label)
@@ -198,7 +198,6 @@ abstract class AggregateHistory(val aggr: DerivedType.AGGREGATE, val position: P
       }.toVector
 
   def delete(groupBy: GroupBy): Unit = {
-    //    println(s"Aggregate delete $groupBy")
     val aggregation =
       Try(aggregationMap(groupBy.seqId)) match {
         case Success(x) => x
