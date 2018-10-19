@@ -68,7 +68,7 @@ class DiscretizationTest extends FunSuite {
     val d2rMap = d2r.toMap
     assert(d2r.groupBy(_._2).mapValues(_.length)(d2rMap(0.33625348176589487)) == 12)
   }
-  
+
   private  val l2 = List(0.0, 4.0, 12.0, 16.0, 16.0, 18.0, 24.0, 26.0, 28.0)
   private val labels2 = List(0, 1, 0, 1, 0, 1, 1, 0, 0)
   private val ll2: List[(Double, Label)] = l2.zip(labels2)

@@ -1,4 +1,3 @@
-import com.typesafe.sbt.packager.MappingsHelper.directory
 import sbt.Keys.mappings
 
 lazy val ruleminer =
@@ -28,9 +27,8 @@ lazy val ruleminer =
       mappings in Universal += {packageBin in Compile map { p => p -> "lib/ruleminer.jar" }}.value,
       mappings in Universal in packageBin += file("Readme.md") -> "Readme.md",
       mappings in Universal in packageBin += file("configuration.pdf") -> "configuration.pdf",
-      mappings in Universal in packageBin += file("example/configuration.conf") -> "example/configuration.conf",
-      mappings in Universal in packageBin += file("example/data.csv") -> "example/data.csv",
+      mappings in Universal in packageBin += file("examples/connect4/configuration.conf") -> "connect4/configuration.conf",
+      mappings in Universal in packageBin += file("examples/connect4/data.csv") -> "connect4/data.csv",
       crossPaths := false
 
     ).enablePlugins(JavaAppPackaging, UniversalDeployPlugin)
-
