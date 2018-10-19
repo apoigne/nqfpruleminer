@@ -39,8 +39,8 @@ class BestSubGroups(numberOfItems: Int, decode: IndexedSeq[Item])(implicit ctx: 
     case subGroup: SubGroup =>
       if (kBestSubGroups.length < ctx.numberOfBestSubgroups) {
         kBestSubGroups = insert(subGroup, kBestSubGroups)
-//        val newMinQ = kBestSubGroups.head.quality
-//        if (newMinQ > _minQ) update(newMinQ)
+        val newMinQ = kBestSubGroups.head.quality
+        if (newMinQ > _minQ) update(newMinQ)
       } else {
         context become receiveFull
         self ! subGroup

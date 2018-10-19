@@ -1,3 +1,3 @@
-import de.fhg.iais.nqfpruleminer.Numeric
+import de.fhg.iais.utils.fail
 
-Numeric(Double.NaN) != Numeric(Double.NaN)
+List(1,2,3).take(4)

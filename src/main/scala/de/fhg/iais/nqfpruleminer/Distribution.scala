@@ -2,7 +2,6 @@ package de.fhg.iais.nqfpruleminer
 
 import de.fhg.iais.nqfpruleminer.Value.Label
 import de.fhg.iais.utils
-import de.fhg.iais.utils.fail
 
 class Distribution(val numberOfTargetGroups: Int) {
   private val distr = Array.fill(numberOfTargetGroups: Int)(0: Int)
@@ -20,11 +19,11 @@ class Distribution(val numberOfTargetGroups: Int) {
 
   def <(that: Distribution): Boolean = distr.drop(1).zip(that.distr.drop(1)).forall { case (x, y) => x < y }
 
-  def sum: Int = distr.sum
+  lazy val sum: Int = distr.sum
 
   def positives: Array[Int] = distr.drop(1)
 
-  def probability: Array[Double] = distr.map(_ / sum.toDouble)
+  lazy val probability: Array[Double] = distr.map(_ / sum.toDouble)
 
   def toList: IndexedSeq[Int] = distr.toIndexedSeq
 
@@ -56,50 +55,3 @@ object Distribution {
   implicit def distribution2array(distr: Distribution): Array[Int] = distr.distr
 }
 
-case class Aggregation(aggregationOp: AggregationOp.Value, getHistory: () => List[Double])(implicit ctx: Context) {
-  private val init =
-    aggregationOp match {
-      case AggregationOp.Sum => 0.0
-      case AggregationOp.Max => Double.MinValue
-      case AggregationOp.Min => Double.MaxValue
-      case AggregationOp.Mean => 0.0
-    }
-  private val value = Array.fill(ctx.numberOfTargetGroups)(init)
-  private val count = Array.fill(ctx.numberOfTargetGroups)(0)
-
-  val plus: (Numeric, Label) => Unit =
-    aggregationOp match {
-      case AggregationOp.Sum => (x: Numeric, label: Label) => value(label) += x.value; count(label) += 1
-      case AggregationOp.Max => (x: Numeric, label: Label) => value(label) = math.max(value(label), x.value); count(label) += 1
-      case AggregationOp.Min => (x: Numeric, label: Label) => value(label) = math.min(value(label), x.value); count(label) += 1
-      case AggregationOp.Mean => (x: Numeric, label: Label) => value(label) += x.value; count(label) += 1
-    }
-
-  val minus: (Numeric, Label) => Unit =
-    aggregationOp match {
-      case AggregationOp.Sum =>
-        (x: Numeric, label: Label) => count(label) -= 1; value(label) -= x.value
-      case AggregationOp.Max =>
-        (x: Numeric, label: Label) => {
-          count(label) -= 1
-          if (x.value == value(label) && count(label) != 0) value(label) = getHistory().max
-        }
-      case AggregationOp.Min =>
-        (x: Numeric, label: Label) => {
-          count(label) -= 1
-          if (x.value > value(label) && count(label) != 0) value(label) = getHistory().min
-        };
-      case AggregationOp.Mean =>
-        (x: Numeric, label: Label) => count(label) -= 1; value(label) -= x.value
-    }
-
-  def sum(): Int = count.sum
-
-  def get: (Label) => Double =
-    aggregationOp match {
-      case AggregationOp.Mean => (label: Label) => value(label) / count(label)
-      case _ => (label: Label) => value(label)
-    }
-
-  override def toString: String = s"counter ${count.toList} value ${value.toList}"
-}

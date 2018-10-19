@@ -55,7 +55,10 @@ class CsvProvider(data: Provider.Csv)(implicit ctx: Context) extends Provider {
     }
 
   val targetIndex: Int = if (header.nonEmpty) header.indexOf(ctx.targetName) else ctx.simpleFeatures.indexWhere(_.name == ctx.targetName)
-  val timeIndex: Option[Int] = ctx.timeName.map(tn => if (header.nonEmpty) header.indexOf(tn) else ctx.simpleFeatures.indexWhere(_.name == tn))
+  val timeIndex: Option[Int] =
+    ctx.timeframe.map(
+      tf => if (header.nonEmpty) header.indexOf(tf.attribute) else ctx.simpleFeatures.indexWhere(_.name == tf.attribute)
+    )
 
   def hasNext: Boolean = lines.hasNext
   def next: Array[String] = lines.next
@@ -68,9 +71,9 @@ class MySqlProvider(data: Provider.MySql)(implicit ctx: Context) extends Provide
   ConnectionPool.singleton(s"jdbc:mysql://${data.host}:${data.port}/${data.database}", data.user, data.password)
   implicit val session: AutoSession = AutoSession
 
-  val featureToPosition: Vector[(Feature, Int)] = ctx.simpleFeatures.map(feature => (feature, feature.position) )
+  val featureToPosition: Vector[(Feature, Int)] = ctx.simpleFeatures.map(feature => (feature, feature.position))
   val targetIndex: Int = ctx.simpleFeatures.indexWhere(_.name == ctx.targetName)
-  val timeIndex: Option[Int] = ctx.timeName.map(tn => ctx.simpleFeatures.indexWhere(_.name == tn))
+  val timeIndex: Option[Int] = ctx.timeframe.map(tf => ctx.simpleFeatures.indexWhere(_.name == tf.attribute))
 
   private case class Record(values: Vector[String])
   private object Record extends SQLSyntaxSupport[Record] {

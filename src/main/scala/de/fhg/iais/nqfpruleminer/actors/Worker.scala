@@ -49,22 +49,21 @@ class Worker(listener: ActorRef)(implicit ctx: Context) extends Actor with Actor
       .flatMap(
         feature =>
           feature.typ match {
-            case BinningType.INTERVAL(delimiters) => Some(feature.position -> Discretization.delimiters2bins(delimiters))
-            case _ => None
+            case BinningType.INTERVAL(delimiters, overlapping) =>
+              Some(feature.position -> Discretization.delimiters2bins(delimiters, overlapping))
+            case _ =>
+              None
           }
       ).toMap
 
 //  println(intervalBinning.toString())
 
   def receive: Receive = {
-    case DataFrame(label, baseItems, derivedItems) =>
+    case DataFrame(label, simpleItems, derivedItems) =>
       rootDistr.add(label)
-      val filteredBaseItems =
-        baseItems.filter(
-          item =>
-            (item.value match {case Numeric(v) => !v.isNaN; case NoValue => false; case _ => true})
-              && ctx.allFeatures(item.position).condition.eval(baseItems.map(_.value))
-        )
+      val filteredSimpleItems =
+        simpleItems
+          .filter(_.value match { case Numeric(v,_) => !v.isNaN; case NoValue => false; case _ => true })
           .flatMap {
             case item@Valued(value: Numeric, position) =>
               intervalBinning.get(position) match {
@@ -76,8 +75,8 @@ class Worker(listener: ActorRef)(implicit ctx: Context) extends Actor with Actor
             case item => List(item)
           }
 
-      val allItems = filteredBaseItems ++ derivedItems
-      instances.add(DataFrame(label, filteredBaseItems, derivedItems))
+      val allItems = filteredSimpleItems ++ derivedItems
+      instances.add(DataFrame(label, filteredSimpleItems, derivedItems))
       allItems.foreach(
         item =>
           distributions get item match {
@@ -85,17 +84,15 @@ class Worker(listener: ActorRef)(implicit ctx: Context) extends Actor with Actor
             case Some(distribution) => distribution.add(label)
           }
       )
-    case Reader.Terminated
-    =>
+    case Reader.Terminated =>
       listener ! Worker.Count(distributions.toList, rootDistr)
-    case Master.GenerateTrees(nqFpTrees, codingTable)
-    =>
+    case Master.GenerateTrees(nqFpTrees, codingTable) =>
       instances.foreach {
         case DataFrame(label, baseItems, derivedItems) =>
           val allItems = baseItems ++ derivedItems
           if (allItems.nonEmpty) {
             rootDistr.add(label)
-            val sortedInstance = baseItems.flatMap(codingTable.get).sortWith(_ < _)  // encoding is "partial"
+            val sortedInstance = allItems.flatMap(codingTable.get).sortWith(_ < _)  // encoding is "partial"
             for ((range, tree) <- nqFpTrees) {
               val instance = sortedInstance.filter(_ < range.end)
               if (instance.exists(_ >= range.start)) {

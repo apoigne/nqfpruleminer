@@ -6,7 +6,7 @@ import org.scalatest.FunSuite
 
 class DiscretizationTest extends FunSuite {
 
-  implicit val ctx: Context = new Context("src/main/resources/connect4.conf")
+  implicit val ctx: Context = new Context("examples/istAnalyse/configuration.conf")
   implicit val position: Position = 0
 
   val l =
@@ -41,56 +41,48 @@ class DiscretizationTest extends FunSuite {
 
   val ll: List[(Double, Label)] = l.zip(labels)
 
-  val dm: Map[Double, Distribution] = ll.groupBy(_._1).mapValues(l => Distribution(l.map(_._2))(2))
+//  val dm: Map[Double, Distribution] = ll.groupBy(_._1).mapValues(l => Distribution(l.map(_._2))(2))
   val ldm: Map[(Double, Label), Distribution] = ll.groupBy(identity).mapValues(l => Distribution(l.map(_._2))(2))
 
   test("Interval binning test") {
-    val bins = Intervals(List(0.2, 0.5, 0.7)).genBins(dm)
+    val bins = Intervals(List(0.2, 0.5, 0.7)).genBins(ldm)
     assert(bins.lengthCompare(4) == 0)
     assert(bins.zip(bins).forall { case (b1, b2) => b1.lo == b2.lo && b1.hi == b2.hi })
     bins.zip(List((0.0022959119736535305, 0.2), (0.2, 0.5), (0.5, 0.7), (0.7, 0.9894101459583835)))
       .foreach { case (x, y) => (x.lo, x.hi) == y }
     val d2r = l.map(x => x -> bins.find(range => range.lo <= x && x < range.hi))
-//    assert(d2r.groupBy(_._2).mapValues(_.length)(Some(BinRange(0.5, 0.7))) == 10)
+    assert(d2r.groupBy(_._2).mapValues(_.length)(Some(Bin(0.5, 0.7))) == 10)
   }
 
   test("Equal width binning test") {
-    val bins = EqualWidth(4).genBins(dm)
+    val bins = EqualWidth(4).genBins(ldm)
     assert(bins.lengthCompare(4) == 0)
     val width = bins.head.hi - bins.head.lo
     bins.foreach(bin => assert((bin.hi - bin.lo).toFloat == width.toFloat))
   }
 
   test("Equal frequency binning test") {
-    val bins = EqualFrequency(4).genBins(dm)
+    val bins = EqualFrequency(4).genBins(ldm)
     assert(bins.lengthCompare(4) == 0)
     val d2r: List[(Double, Option[Bin])] = l.map(x => x -> bins.find(range => range.lo <= x && x < range.hi))
     val d2rMap = d2r.toMap
     assert(d2r.groupBy(_._2).mapValues(_.length)(d2rMap(0.33625348176589487)) == 12)
   }
+  
+  private  val l2 = List(0.0, 4.0, 12.0, 16.0, 16.0, 18.0, 24.0, 26.0, 28.0)
+  private val labels2 = List(0, 1, 0, 1, 0, 1, 1, 0, 0)
+  private val ll2: List[(Double, Label)] = l2.zip(labels2)
 
-//  test("Entropy binning test") {
-//    try {
-//      Entropy("xxx", 4).genBins(ldm)
-//    } catch {
-//      case e  :Throwable => assert(e.getMessage == "Entropy binning generated 1 bins which is less than 4 as required.")
-//    }
-//  }
-
-  val l2 = List(0.0, 4.0, 12.0, 16.0, 16.0, 18.0, 24.0, 26.0, 28.0)
-  val labels2 = List(0, 1, 0, 1, 0, 1, 1, 0, 0)
-  val ll2: List[(Double, Label)] = l2.zip(labels2)
-
-  val dm2: Map[Double, Distribution] = ll2.groupBy(_._1).mapValues(l => Distribution(l.map(_._2))(2))
+  private val ldm2 = ll2.groupBy(identity).mapValues(l => Distribution(l.map(_._2))(2))
 
   test("Equal width binning test 2") {
-    val bins = EqualWidth(3).genBins(dm2)
+    val bins = EqualWidth(3).genBins(ldm2)
     val width = bins.head.hi - bins.head.lo
     bins.foreach(bin => assert((bin.hi - bin.lo).toFloat == width.toFloat))
   }
 
   test("Equal frequency binning test 2") {
-    val bins = EqualFrequency(3).genBins(dm2)
+    val bins = EqualFrequency(3).genBins(ldm2)
     val d2r = l2.map(x => x -> bins.find(range => range.lo <= x && x < range.hi))
     val d2rMap = d2r.toMap
     assert(d2r.groupBy(_._2).mapValues(_.length)(d2rMap(12.0)) == 3)
@@ -100,7 +92,7 @@ class DiscretizationTest extends FunSuite {
   val labels3 = List(0, 1, 0, 1, 1)
   val ll3: List[(Double, Label)] = l3.zip(labels3)
 
-  val dm3: Map[Double, Distribution] = ll3.groupBy(_._1).mapValues(l => Distribution(l.map(_._2))(2))
+//  val dm3: Map[Double, Distribution] = ll3.groupBy(_._1).mapValues(l => Distribution(l.map(_._2))(2))
   val ldm3: Map[(Double, Label), Distribution] = ll3.groupBy(identity).mapValues(l => Distribution(l.map(_._2))(2))
 
   test("Entropy binning test 2") {

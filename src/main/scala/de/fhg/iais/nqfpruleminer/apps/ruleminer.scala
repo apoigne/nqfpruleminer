@@ -9,15 +9,11 @@ import org.backuity.clist._
 object ruleminer extends CliMain[Unit](
   name = "ruleminer",
   description =
-    """Generates the most interesting subgroups using the "Not Quite FPGrowth" algorithm.
-      |    Supported inputs are .csv files and .arff file.
-      |    Assumptions:
-      |       -.csv files: first line defines the feature names
-      |       -.arff files: data are in csv format """.stripMargin
+    """Generates subgroups that are interesting according to some quality function.""".stripMargin
 
 ) {
 
-  var configFile: String = arg[String](description = "Input file")
+  var configFile: String = arg[String](description = "Configuration file")
 
   private val system = ActorSystem("nqfpminer")
 

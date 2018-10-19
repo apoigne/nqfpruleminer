@@ -6,5 +6,8 @@ bin/*
 .DS_Store
 /.worksheet
 /.worksheet/src/*
-.idea/workspace.xml
-data/
+.idea/*
+examples/FromRuleCreator/*
+examples/connect4/result.txt
+examples/IstAnalyse/*
+src/main/scala/de/fhg/iais/nqfpruleminer/io/Reader.scala

@@ -2,8 +2,8 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/.idea/modules/nqfpgrowth.iml" filepath="$PROJECT_DIR$/.idea/modules/nqfpgrowth.iml" />
-      <module fileurl="file://$PROJECT_DIR$/.idea/modules/nqfpgrowth-build.iml" filepath="$PROJECT_DIR$/.idea/modules/nqfpgrowth-build.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/ruleminer.iml" filepath="$PROJECT_DIR$/.idea/modules/ruleminer.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/ruleminer-build.iml" filepath="$PROJECT_DIR$/.idea/modules/ruleminer-build.iml" />
     </modules>
   </component>
 </project>

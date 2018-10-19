@@ -2,6 +2,7 @@ package de.fhg.iais.nqfpruleminer.actors
 
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import akka.routing.{Broadcast, RoundRobinPool}
+import better.files._
 import de.fhg.iais.nqfpruleminer.actors.BestSubGroups.MinQ
 import de.fhg.iais.nqfpruleminer.io.Reader
 import de.fhg.iais.nqfpruleminer.{Coding, Context}
@@ -35,7 +36,6 @@ class Master(implicit ctx: Context) extends Actor with ActorLogging {
 
   def waitForItemsToBeGenerated(n: Int): Receive = {
     case count@Worker.Count(table, distr) =>
-//      log.info(progress("before"))
       table.foreach {
         case (value, distribution) =>
           itemFrequencies get value match {
@@ -76,8 +76,16 @@ class Master(implicit ctx: Context) extends Actor with ActorLogging {
         val filteredItemFrequencies =
           filteredItems.map(value => value -> itemFrequencies(value)).toMap
 
+        val statistics = s"${ctx.configFileName}_frequency.txt".toFile
+        if (statistics.exists) statistics.delete()
+        filteredItemFrequencies.toList.sortWith((x0, x1) => x0._2.sum > x1._2.sum).foreach(x => statistics.appendLine(s"${x._1.toString}: ${x._2.sum}"))
+
+        log.info(s"Statistics are in file '$statistics'")
+        if (ctx.statisticsOnly) System.exit(0)
+
         // Only these are encoded
         val coding: Coding = new Coding(filteredItemFrequencies)
+
         log.info(progress("sec needed for binning items"))
         log.info(s"Number of items: ${coding.numberOfItems}")
 

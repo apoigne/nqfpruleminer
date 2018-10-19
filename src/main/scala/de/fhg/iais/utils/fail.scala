@@ -18,6 +18,7 @@ object tryFail {
       case Success(v) => v
       case Failure(e) => fail(e.getMessage); null.asInstanceOf[T]
     }
+
 }
 
 object tryWithDefault {

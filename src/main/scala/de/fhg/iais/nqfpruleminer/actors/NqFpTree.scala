@@ -26,14 +26,16 @@ class NqFpTree(lower: Int, upper: Int, numberOfItems: Int, lengthOfSubgroups: In
   subGroup(0) = lower - 1
   private var depth = 0
 
+  val root = FPnode(-1, None)
+  val headers: Array[List[FPnode]] = Array.fill(numberOfItems)(List[FPnode]())
+
+  private val itemDistributions: Array[Distribution] = Array.tabulate(numberOfItems)(_ => Distribution()) // number of target groups is implicitly defined
+  private val optimisticEstimate: Array[Array[Double]] = Array.tabulate(lengthOfSubgroups)(_ => Array.fill(numberOfItems)(Double.MaxValue))
+
   def receive: Receive = {
     case EncodedInstance(label, instance) =>
-//      val instance = _instance.filter(_ < upper)
-//      if (instance.exists(_ >= lower)) {
-//      log.info(instance.toString)
       val distr = Distribution(label)
       addInstance(root, distr, instance)
-//      }
     case NoMoreInstances(quality) =>
       log.info(s"Number of nodes = $nodeCounter")
       estimates(Nil, upper, 0, quality)
@@ -41,16 +43,11 @@ class NqFpTree(lower: Int, upper: Int, numberOfItems: Int, lengthOfSubgroups: In
       self ! Next
   }
 
-  val root = FPnode(-1, None)
-  val headers: Array[List[FPnode]] = Array.fill(numberOfItems)(List[FPnode]())
-
-  val itemDistributions: Array[Distribution] = Array.tabulate(numberOfItems)(_ => Distribution()) // number of target groups is implicitly defined
-  val optimisticEstimate: Array[Array[Double]] = Array.tabulate(lengthOfSubgroups)(_ => Array.fill(numberOfItems)(Double.MaxValue))
-
   def computeSubgroups(quality: Distribution => Quality): Receive = {
     case Next =>
       subGroup(depth) += 1
       val item = subGroup(depth)
+//      println(s"subGroup $depth $item ${optimisticEstimate(depth)(item)}  $minQ")
       if (depth > 0 && item < subGroup(depth - 1) || depth == 0 && item < upper) {
         if (depth + 1 < lengthOfSubgroups && optimisticEstimate(depth)(item) > minQ) {
           if (depth == 0) log.info(s"Evaluation of item $item started")

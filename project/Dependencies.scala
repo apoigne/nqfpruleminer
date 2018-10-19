@@ -12,7 +12,7 @@ object Dependencies {
     val opencsv = "3.8"
     val scalaTest = "3.0.4"
     val sprayJson = "1.3.4"
-    val akka = "2.5.11"
+    val akka = "2.5.12"
     val config = "1.3.2"
     val clist = "3.3.0"
     val betterFiles = "3.4.0"
@@ -23,6 +23,7 @@ object Dependencies {
     val h2 = "1.4.196"
     val scalikejJDCB = "3.1.0"
     val logback = "1.2.3"
+    val fastParse = "1.0.0"
   }
 
   private val scalaTest = "org.scalatest" %% "scalatest" % Version.scalaTest
@@ -41,6 +42,7 @@ object Dependencies {
   private val mySqlConnector = "mysql" % "mysql-connector-java" % Version.mySqlConnector
   private val scalikejJDCB = "org.scalikejdbc" %% "scalikejdbc" % Version.scalikejJDCB
   private val logback = "ch.qos.logback" % "logback-classic" % Version.logback
+  private val fastParse = "com.lihaoyi" %% "fastparse" % Version.fastParse
 
   val allDependencies = Seq(
     akkaActor,
@@ -58,6 +60,7 @@ object Dependencies {
 //    h2 % "test",
     mySqlConnector,
     scalikejJDCB,
-    logback
+    logback,
+    fastParse
   )
 }
