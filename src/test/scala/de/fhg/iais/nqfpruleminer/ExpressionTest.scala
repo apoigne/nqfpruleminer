@@ -24,31 +24,31 @@ class ExpressionTest extends FunSuite {
 //  }
 
   test("x < 3.0") {
-    assert(LT(Id("x", 0), Val(Numeric(3.0))) == parse("x < 3.0", "test").updatePosition(ctx.attributeToPosition))
+    assert(LT(Id("x", 0), Val(Numeric(3.0))) == parseExpression("x < 3.0", "test").updatePosition(ctx.attributeToPosition))
   }
 
   test("'true") {
-    assert(TRUE == parse("'true", "test").updatePosition(ctx.attributeToPosition))
+    assert(TRUE == parseExpression("'true", "test").updatePosition(ctx.attributeToPosition))
   }
 
   test("x <= 3.0") {
-    assert(LE(Id("x", 0), Val(Numeric(3.0))) == parse("x <= 3.0", "test").updatePosition(ctx.attributeToPosition))
+    assert(LE(Id("x", 0), Val(Numeric(3.0))) == parseExpression("x <= 3.0", "test").updatePosition(ctx.attributeToPosition))
   }
 
   test("y > 3.0 && x <= 3.0") {
     assert(
-      parse("y > 3.0 && x <= 3.0", "test").updatePosition(ctx.attributeToPosition) ==
+      parseExpression("y > 3.0 && x <= 3.0", "test").updatePosition(ctx.attributeToPosition) ==
         AND(List(GT(Id("y", 1), Val(Numeric(3.0))), LE(Id("x", 0), Val(Numeric(3.0))))))
   }
 
   test("x > 3.0 && y != 3.0 && z <= 3.0") {
-    assert(parse("x > 3.0 && y != 3.0 && z <= 3.0", "test").updatePosition(ctx.attributeToPosition) ==
+    assert(parseExpression("x > 3.0 && y != 3.0 && z <= 3.0", "test").updatePosition(ctx.attributeToPosition) ==
       AND(List(GT(Id("x", 0), Val(Numeric(3.0))), NE(Id("y", 1), Val(Numeric(3.0))), LE(Id("z", 2), Val(Numeric(3.0)))))
     )
   }
 
   test("x > 3.0 && y != 3.0 || z <= 3.0") {
-    assert(parse("x > 3.0 &&  y != 3.0 || z <= 3.0", "test").updatePosition(ctx.attributeToPosition) ==
+    assert(parseExpression("x > 3.0 &&  y != 3.0 || z <= 3.0", "test").updatePosition(ctx.attributeToPosition) ==
       OR(List(AND(List(GT(Id("x", 0), Val(Numeric(3.0))), NE(Id("y", 1), Val(Numeric(3.0))))), LE(Id("z", 2), Val(Numeric(3.0))))))
   }
 }

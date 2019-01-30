@@ -3,7 +3,7 @@ package de.fhg.iais.nqfpruleminer
 import de.fhg.iais.nqfpruleminer.Expression.{BoolExpr, TRUE}
 import de.fhg.iais.nqfpruleminer.Item.Position
 import de.fhg.iais.nqfpruleminer.Value.Label
-import de.fhg.iais.utils.{fail, _}
+import de.fhg.iais.utils.fail
 import org.joda.time.DateTime
 import org.joda.time.format.DateTimeFormatter
 

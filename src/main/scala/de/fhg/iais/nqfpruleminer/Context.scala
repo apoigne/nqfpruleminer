@@ -82,7 +82,6 @@ class Context(configFile: String) {
 
   val maxNumberOfItems: Int = tryWithDefault(config getInt "maxNumberOfItems", Int.MaxValue)
   val refineSubgroups: Boolean = tryWithDefault(config getBoolean "refineSubgroups", false)
-  val usesOverlappingIntervals: Boolean = tryWithDefault(config getBoolean "useOverlappingIntervals", false)
   val computeClosureOfSubgroups: Boolean = tryWithDefault(config getBoolean "computeClosureOfSubgroups", false)
 
   val numberOfWorkers: Int = tryWithDefault(config getInt "numberOfWorkers", 1)
@@ -128,7 +127,7 @@ class Context(configFile: String) {
           if (!feature.hasPath("condition"))
             TRUE
           else
-            Try(Expression.parse(feature.getString("condition"), s"Context property condition of feature $attribute")) match {
+            Try(Expression.parseExpression(feature.getString("condition"), s"Context property condition of feature $attribute")) match {
               case Success(cond) => cond
               case Failure(e) => fail(e.getLocalizedMessage); TRUE
             }
@@ -215,7 +214,7 @@ class Context(configFile: String) {
       TRUE
     else
       Try(config getString "instanceFilter") match {
-        case Success(cond) => Expression.parse(cond, "Context property instanceFilter").updatePosition(this.attributeToPosition)
+        case Success(cond) => Expression.parseExpression(cond, "Context property instanceFilter").updatePosition(this.attributeToPosition)
         case Failure(e) => fail(e.getLocalizedMessage); TRUE
       }
 
@@ -349,7 +348,7 @@ class Context(configFile: String) {
             else
               Try(config.getString("condition")) match {
                 case Success(cond) =>
-                  val condition = Expression.parse(cond, s"Context feature $attributes").updatePosition(this.attributeToPosition)
+                  val condition = Expression.parseExpression(cond, s"Context feature $attributes").updatePosition(this.attributeToPosition)
                   if (condition.attributes.forall(simpleFeatures.map(_.name).contains(_))) {
                     condition
                   } else if (attributes.isEmpty && condition.attributes.nonEmpty) {

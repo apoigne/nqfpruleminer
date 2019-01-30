@@ -23,7 +23,7 @@ object Dependencies {
     val h2 = "1.4.196"
     val scalikejJDCB = "3.1.0"
     val logback = "1.2.3"
-    val fastParse = "1.0.0"
+    val fastParse = "2.0.4"
   }
 
   private val scalaTest = "org.scalatest" %% "scalatest" % Version.scalaTest
