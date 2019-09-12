@@ -54,4 +54,3 @@ object Distribution {
 
   implicit def distribution2array(distr: Distribution): Array[Int] = distr.distr
 }
-

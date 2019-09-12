@@ -98,7 +98,8 @@ class Master(implicit ctx: Context) extends Actor with ActorLogging {
                 range ->
                   context.actorOf(
                     NqFpTree.props(range, coding.numberOfItems, ctx.lengthOfSubgroups),
-                    name = s"nqfptree-${range.start}-${range.end}")
+                    name = s"nqfptree-${range.start}-${range.end}"
+                  )
             )
 
         implicit val trees: List[ActorRef] = nqFpTrees.map(_._2)

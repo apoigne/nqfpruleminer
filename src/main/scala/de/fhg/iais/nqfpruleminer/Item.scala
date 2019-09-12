@@ -235,4 +235,3 @@ case class Existed(item: Item, position: Position = -1)(implicit ctx: Context) e
   override def toString: String =
     s"${ctx.allFeatures(position).name}.exists(${item.toString})"
 }
-

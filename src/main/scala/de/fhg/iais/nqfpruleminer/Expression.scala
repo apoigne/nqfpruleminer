@@ -141,5 +141,4 @@ object Expression {
         fail(s"\nReference: $property\n\nParser failed to apply the rule '$expected' at index $failIndex of $s.")
         null
     }
-
 }
