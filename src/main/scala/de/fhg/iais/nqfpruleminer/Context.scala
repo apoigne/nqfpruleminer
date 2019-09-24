@@ -78,7 +78,8 @@ class Context(configFile: String) {
   val qualityMode: String = tryWithDefault(config getString "qualityfunction", "Piatetsky")
 
   fail(qualityMode == "Piatetsky" || qualityMode == "Binomial" || qualityMode == "Split" ||
-    qualityMode == "Pearson" || qualityMode == "Gini", s"Quality mode $qualityMode is not supported.")
+    qualityMode == "Pearson" || qualityMode == "Gini" || qualityMode == "Lift",
+    s"Quality mode $qualityMode is not supported.")
 
   val maxNumberOfItems: Int = tryWithDefault(config getInt "maxNumberOfItems", Int.MaxValue)
   val refineSubgroups: Boolean = tryWithDefault(config getBoolean "refineSubgroups", false)

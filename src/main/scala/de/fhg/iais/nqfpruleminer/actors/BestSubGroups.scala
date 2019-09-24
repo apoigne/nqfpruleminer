@@ -38,9 +38,13 @@ class BestSubGroups(numberOfItems: Int, decode: IndexedSeq[Item])(implicit ctx: 
   def receive: Receive = {
     case subGroup: SubGroup =>
       if (kBestSubGroups.length < ctx.numberOfBestSubgroups) {
-        kBestSubGroups = insert(subGroup, kBestSubGroups)
-        val newMinQ = kBestSubGroups.head.quality
-        if (newMinQ > _minQ) update(newMinQ)
+        if (subGroup.distr.sum > 0) {
+          kBestSubGroups = insert(subGroup, kBestSubGroups)
+          val newMinQ = kBestSubGroups.head.quality
+          if (newMinQ > _minQ) update(newMinQ)
+        } else {
+          log.info(subGroup.toString)
+        }
       } else {
         context become receiveFull
         self ! subGroup
@@ -52,7 +56,7 @@ class BestSubGroups(numberOfItems: Int, decode: IndexedSeq[Item])(implicit ctx: 
 
   def receiveFull: Receive = {
     case subGroup: SubGroup =>
-      if (subGroup.quality > _minQ) {
+      if (subGroup.quality > _minQ && subGroup.distr.sum > 0) {
         kBestSubGroups = insert(subGroup, kBestSubGroups.tail)
         val newMinQ = kBestSubGroups.head.quality
         if (newMinQ > _minQ) update(newMinQ)

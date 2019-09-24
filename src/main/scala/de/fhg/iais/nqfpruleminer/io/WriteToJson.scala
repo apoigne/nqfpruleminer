@@ -29,6 +29,11 @@ class WriteToJson(numberOfItems: Int,
           "number_of_items" -> numberOfItems.toJson,
           "target_value_distribution" ->
             (ctx.qualityMode match {
+              case "Lift" =>
+                Map(
+                  ctx.targetGroups.head -> rootDistribution(1).toJson,
+                  "others" -> rootDistribution(0).toJson
+                ).toJson
               case "Piatetsky" =>
                 Map(
                   ctx.targetGroups.head -> rootDistribution(1).toJson,
@@ -54,6 +59,8 @@ class WriteToJson(numberOfItems: Int,
                   "generality" -> sg.generality.toJson,
                   "probabilities" ->
                     (ctx.qualityMode match {
+                      case "Lift" =>
+                        Map("p" -> (sg.distr(0).toDouble / sg.distr.sum.toDouble).toJson).toMap.toJson
                       case "Piatetsky" =>
                         Map("p" -> (sg.distr(0).toDouble / sg.distr.sum.toDouble).toJson).toMap.toJson
                       case "Binomial" =>

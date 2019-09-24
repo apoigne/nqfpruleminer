@@ -26,8 +26,8 @@ object ruleminer extends CliMain[Unit](
     println(s"Minimal generality: ${ctx.minG}")
     println(s"Minimal probability: ${ctx.minP}")
 
-    fail(ctx.numberOfTargetGroups == 2 && (ctx.qualityMode == "Piatetsky" || ctx.qualityMode == "Binomial"),
-      "Mode is Piatetsky-Shapiro or Binomial. No unique target value is specified.")
+    fail(ctx.numberOfTargetGroups == 2 || !(ctx.qualityMode == "Piatetsky" || ctx.qualityMode == "Binomial" || ctx.qualityMode == "Lift"),
+      "Mode is Piatetsky-Shapiro, Binomial, or lift. No unique target value is specified.")
 
     progress("sec needed for code generation")
 

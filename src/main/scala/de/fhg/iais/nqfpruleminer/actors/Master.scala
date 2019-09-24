@@ -55,6 +55,7 @@ class Master(implicit ctx: Context) extends Actor with ActorLogging {
 
         implicit val quality: Distribution => Quality =
           ctx.qualityMode match {
+            case "Lift" => Lift(ctx.minG, ctx.minP, n0, p0).eval
             case "Piatetsky" => Piatetsky(ctx.minG, ctx.minP, n0, p0).eval
             case "Piatetsky-Shapiro" => Piatetsky(ctx.minG, ctx.minP, n0, p0).eval
             case "Binomial" => Binomial(ctx.minG, ctx.minP, n0, p0).eval

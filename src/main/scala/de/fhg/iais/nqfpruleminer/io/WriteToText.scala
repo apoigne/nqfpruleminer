@@ -41,17 +41,16 @@ class WriteToText(numberOfItems: Int,
           kBestSubGroups.reverse.zipWithIndex.map {
             case (sg: SubGroup, index: Int) =>
               s"\n${index + 1}. " +
-                sg.group.sorted.map(decode).map(_.toString).reduce(_ + " & " + _) +
+                sg.group.sorted.map(decode).map(_.toString).reduce(_ + " && " + _) +
                 s"\nQuality = ${sg.quality}" +
                 s"\nSize = ${sg.distr.sum}, Generality = ${sg.generality}, " + {
-                val n = sg.distr.sum.toDouble
                 ctx.qualityMode match {
                   case "Piatetsky" =>
-                    s"p = ${sg.distr(0).toDouble / n}"
+                    s"p = ${sg.distr(0).toDouble / sg.distr.sum.toDouble}"
                   case "Binomial" =>
-                    s"p = ${sg.distr(0).toDouble / n}"
+                    s"p = ${sg.distr(0).toDouble / sg.distr.sum.toDouble}"
                   case _ =>
-                    (0 until ctx.numberOfTargetGroups).map(i => s"p($i) = ${sg.distr(i).toDouble / n}").reduce(_ + ", " + _)
+                    (0 until ctx.numberOfTargetGroups).map(i => s"p($i) = ${sg.distr(i).toDouble / sg.distr.sum.toDouble}").reduce(_ + ", " + _)
                 }
               } + "\n"
           }.reduce(_ + _) +
