@@ -2,7 +2,6 @@ package de.fhg.iais.nqfpruleminer.actors
 
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import akka.routing.{Broadcast, RoundRobinPool}
-import better.files._
 import de.fhg.iais.nqfpruleminer.actors.BestSubGroups.MinQ
 import de.fhg.iais.nqfpruleminer.io.Reader
 import de.fhg.iais.nqfpruleminer.{Coding, Context}
@@ -12,7 +11,7 @@ object Master {
   def props()(implicit ctx: Context): Props = Props(classOf[Master], ctx)
 
   case object Start
-  case class GenerateTrees(nqfptrees: List[(Range, ActorRef)], codingTable: Coding.CodingTable)
+  case class GenerateTrees(nqfptrees: List[(Range, ActorRef)], coding: Coding)
 }
 
 class Master(implicit ctx: Context) extends Actor with ActorLogging {
@@ -35,7 +34,7 @@ class Master(implicit ctx: Context) extends Actor with ActorLogging {
   }
 
   def waitForItemsToBeGenerated(n: Int): Receive = {
-    case count@Worker.Count(table, distr) =>
+    case Worker.Count(table, distr) =>
       table.foreach {
         case (value, distribution) =>
           itemFrequencies get value match {
@@ -66,23 +65,17 @@ class Master(implicit ctx: Context) extends Actor with ActorLogging {
 
         // We take the  maxNumberOfItems of items with the best quality
         val filteredItems =
-          itemFrequencies.filter { case (_, _distr) => _distr.probability.forall(_ >= ctx.minP) }
+          itemFrequencies
+            .filter { case (_, _distr) => _distr.probability.forall(_ >= ctx.minP) }
             .mapValues(quality)
             .toList
-            .filter({ case (_, Quality(q, g, _)) => g >= ctx.minG })
-            .sortBy { case (_, Quality(q, g, _)) => q }
+            .filter({ case (_, Quality(_, g, _)) => g >= ctx.minG })
+            .sortBy { case (_, Quality(q, _, _)) => q }
             .take(ctx.maxNumberOfItems)
             .map(_._1)
 
         val filteredItemFrequencies =
           filteredItems.map(value => value -> itemFrequencies(value)).toMap
-
-        val statistics = s"${ctx.configFileName}_frequency.txt".toFile
-        if (statistics.exists) statistics.delete()
-        filteredItemFrequencies.toList.sortWith((x0, x1) => x0._2.sum > x1._2.sum).foreach(x => statistics.appendLine(s"${x._1.toString}: ${x._2.sum}"))
-
-        log.info(s"Statistics are in file '$statistics'")
-        if (ctx.statisticsOnly) System.exit(0)
 
         // Only these are encoded
         val coding: Coding = new Coding(filteredItemFrequencies)
@@ -90,7 +83,7 @@ class Master(implicit ctx: Context) extends Actor with ActorLogging {
         log.info(progress("sec needed for binning items"))
         log.info(s"Number of items: ${coding.numberOfItems}")
 
-        context.actorOf(BestSubGroups.props(coding.numberOfItems, coding.decodingTable), name = "bestsubgroups")
+        val bestSubgroups = context.actorOf(BestSubGroups.props(coding.numberOfItems, coding), name = "bestsubgroups")
 
         val nqFpTrees =
           ctx.delimiterRangesForParallelExecution(coding.numberOfItems)
@@ -98,14 +91,14 @@ class Master(implicit ctx: Context) extends Actor with ActorLogging {
               range =>
                 range ->
                   context.actorOf(
-                    NqFpTree.props(range, coding.numberOfItems, ctx.lengthOfSubgroups),
+                    NqFpTree.props(range, coding.numberOfItems, ctx.lengthOfSubgroups, self, bestSubgroups),
                     name = s"nqfptree-${range.start}-${range.end}"
                   )
             )
 
         implicit val trees: List[ActorRef] = nqFpTrees.map(_._2)
 
-        workers ! Broadcast(Master.GenerateTrees(nqFpTrees, coding.codingTable))
+        workers ! Broadcast(Master.GenerateTrees(nqFpTrees, coding))
         context become waitForTreeGenerationTermination(ctx.numberOfWorkers)
       }
 

@@ -185,6 +185,7 @@ object Item {
       case Failure(e) => fail(s"Item $item: ${e.getLocalizedMessage}"); null
     }
 }
+
 sealed trait Item {
   val position: Position
   val getLabelledDouble: Option[(Double, Label)]

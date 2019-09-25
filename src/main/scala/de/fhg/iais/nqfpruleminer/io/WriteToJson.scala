@@ -2,14 +2,14 @@ package de.fhg.iais.nqfpruleminer.io
 
 import better.files._
 import de.fhg.iais.nqfpruleminer.actors.BestSubGroups.SubGroup
-import de.fhg.iais.nqfpruleminer.{Coding, Context, Distribution}
+import de.fhg.iais.nqfpruleminer.{Context, Distribution}
 import de.fhg.iais.utils.binomialSum
 import spray.json.DefaultJsonProtocol._
 import spray.json._
 
 class WriteToJson(numberOfItems: Int,
                   kBestSubGroups: List[SubGroup],
-                  decode: Coding.DecodingTable,
+                  decode: Int => String,
                   rootDistribution: Distribution,
                   subgroupCounter: Long
                  )(implicit ctx: Context) {
@@ -60,11 +60,11 @@ class WriteToJson(numberOfItems: Int,
                   "probabilities" ->
                     (ctx.qualityMode match {
                       case "Lift" =>
-                        Map("p" -> (sg.distr(0).toDouble / sg.distr.sum.toDouble).toJson).toMap.toJson
+                        Map("p" -> (sg.distr(0).toDouble / sg.distr.sum.toDouble).toJson).toJson
                       case "Piatetsky" =>
-                        Map("p" -> (sg.distr(0).toDouble / sg.distr.sum.toDouble).toJson).toMap.toJson
+                        Map("p" -> (sg.distr(0).toDouble / sg.distr.sum.toDouble).toJson).toJson
                       case "Binomial" =>
-                        Map("p" -> (sg.distr(0).toDouble / sg.distr.sum.toDouble).toJson).toMap.toJson
+                        Map("p" -> (sg.distr(0).toDouble / sg.distr.sum.toDouble).toJson).toJson
                       case _ =>
                         val n = sg.distr.sum.toDouble
                         (0 until ctx.numberOfTargetGroups).map(i => s"p($i)" -> (sg.distr(i).toDouble / n).toJson).toMap.toJson
@@ -78,5 +78,4 @@ class WriteToJson(numberOfItems: Int,
 
       outputFile.toFile.append(output)
     }
-  }
-}
+  }                                                                                                           }

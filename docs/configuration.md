@@ -1,6 +1,6 @@
 ### Configuration File
 
-Configuration files are specified usíng the HOCON format - *Human-Optimized Config Object Notation* (<https://github.com/lightbend/config/blob/master/HOCON.md>), a simplified JSON dialect.
+Configuration files are specified usíng the [HOCON format](https://github.com/lightbend/config/blob/master/HOCON.md) - *Human-Optimized Config Object Notation*, a simplified JSON dialect.
 
 #### Subgroup Discovery
 
@@ -71,7 +71,7 @@ The following parameters determine the behaviour of the subgroup mining algorith
     minimalQuality = <double>              // Default: 0.0
     minGenerality = <double>               // Default: 0.0
     minProbability =<double>               // Default: 0.0
-  
+
 - `numberOfBestSubgroups` - maximal length of the subgroups
 - `maxNumberOfItems` - restricts the number of items. Order criterium is frequeny.
 - `computeClosureOfSubgroups ` - if true, the closure of the k best subgroups are computed.
@@ -97,7 +97,7 @@ At present there are two options fot parallel execution.
        numberOfWorkers = <integer>                             // Default: 1
        delimitersForParallelExecutionOfTrees =  [ <integers> ] // Default: []
     }
-    
+
 - `numberOfWorkers` determines the number of processes used for data preparation.
 - `delimitersForParallelExecutionOfTrees` is used for parallel subgroup mining. Delimiters are percentages, i.e. for all delimiters \\(d\\), \\(0 \lt d \lt 100\\). The tree constructed from all instances is split into several subtrees (with the hope) to improve computation time. Note that the split may substantially increase memory size and the speedup is not necessarily as expected, the reason being that subgroup mining is by no means data parallel.  
 The implementation so far runs on a single computer. It might be useful in cases but its benefit may become visible if run on a cluster (not yet implemented).
@@ -107,7 +107,7 @@ The implementation so far runs on a single computer. It might be useful in cases
 A list of all *features* of interest needs to be specified 
 
 	features = [ <feature> ]
- 
+
  A feature consists of
 
 - an *attribute*, i.e. a string refering to a column of the input data. The string must only use letters a - z, A - Z, digits 0 - 9, and the character '_'. An attribute must start with a letter.
@@ -127,7 +127,7 @@ The following format is accepted
          binning = <binning> // required if the type is Numeric
          condition = <condition>
        }
-
+    
     <type> ::= "Nominal" | "Numeric"
 
 
@@ -145,9 +145,9 @@ The following format is accepted
         }
        
     <mode> ::= "Equalwidth" | "EqualFrequency" | "Entropy"
-        
+
 In case of `<provider>` being `csvReader`, if input data is read from an CSV file that has no header, the feature list is used as a header. Below is an example of a feature list with typical entries
-   
+
 Examples:
     
     features = [
@@ -175,7 +175,7 @@ The list of feature must contain a *target feature* of type `Nominal`. The label
 	
 The key `target` must be specified. There must be at least one label.	
 #### Time
-	
+
 If instances are ordered by a time attribute, this may be specified by
 
     time {
@@ -205,15 +205,15 @@ Derived features are optional.
 ##### Compound Features
 
 Compund Features are specified as a list
- 
+
 	compoundFeatures = [ <compoundFeature> ]
 	
 	compoundFeature :: = 
-       { 
-         group = [ <attribute> ],
-         condition = <condition> 
-       }		
-	
+	   { 
+	     group = [ <attribute> ],
+	     condition = <condition> 
+	   }		
+
 The attributes must be specified in the list of features.
 
 A compound feature groups a list of features to create a new feature with 
@@ -228,14 +228,14 @@ Given an instance, the value of a compound feature `Compound(attr1, ..., attrn)`
 Prefix features are specified by
 
 	prefixFeatures = [ <prefixFeature> ]
+	
+	prefixFeature ::=
+	    { 
+	      attribute = <attribute>,
+	      condition = <condition>,
+	      prefixes = [ <integer> ]
+	    }
 
-    prefixFeature ::=
-        { 
-          attribute = <attribute>,
-          condition = <condition>,
-          prefixes = [ <integer> ]
-        }
- 
 For each prefix n a new feature with the attribute `<attribute>_prefix_n` is generated. 
 
 Given an instance, the value of the feature `<attribute>_prefix_n`  is the value of the feature with attribute `<attribute>` but reduced to a prefix of length n. 
@@ -245,15 +245,15 @@ Given an instance, the value of the feature `<attribute>_prefix_n`  is the value
 Ranged features are specified as a list
 
 	rangedFeatures = [ <rangedFeature> ]
-
-    rangedFeature ::=
-      {
-        attribute = <attribute>, 
-        condition = <condition>, 
-        ranges = [ <range> ]
-      }
-    
-    range ::= { lo = <double>, hi = <double> }
+	
+	rangedFeature ::=
+	  {
+	    attribute = <attribute>, 
+	    condition = <condition>, 
+	    ranges = [ <range> ]
+	  }
+	
+	range ::= { lo = <double>, hi = <double> }
 
 For each range `{ lo = x, hi = y }`, a new feature with the attribute `<attribute>_range(x,y)` will be generated.
 
@@ -290,13 +290,14 @@ If a time attribute exists, features can aggregated over periods of time. The ag
     <aggregateOperator> ::= sum | max | min | mean
     <countOperator> ::= exists | count | 
     <period> ::= <integer>d | <integer>h | <integer>m | <integer>s | <integer>n
-    
+
 where "d" stands for day, "h" for hours, 2m" for minutes, "s" for seconds, and 'n' for number of instances. Further 
 
 - All attributes must be specified in the list of features
 - The keys `groupBy`, `condition`, `minimum` are optional
 - `minimum` defines a lower bound. If the counts or the aggregations are smaller than the bound, no features are generated.
-	 
+	
+
 For each period, a new feature attribute is generated of the following format
 
 - if the operator is `exists` 
@@ -344,7 +345,7 @@ Corresponding attributes are, e.g.,
 	Aggregate(10s).count(id == 'a') == 3
 	Aggregate(5m).exists(id == 'a' && num == 1.0) == 3
 	Aggregate(10h).sum(id == 'a') num == [200, 300]
- 
+
 
 
 #### Instance Filter
@@ -353,15 +354,14 @@ The instance filter is a Boolean expression. Instances that do not satisfy the c
 
       start = <time>
        end = <time>
-
-    instanceFilter = <condition>
     
+    instanceFilter = <condition>
+
 
 #### Condition
 
 `<condition>` is Boolean expression as string. Identiers used must be in the list of feature attributes. The notation follows Java conventions, e.g.
 
 	"(feature1 >= 12.0 || feature1 <= -1.0) && feature2 != NaN"
-
+	
 	"num >= 1.3 && x == \"a\" " 
- 

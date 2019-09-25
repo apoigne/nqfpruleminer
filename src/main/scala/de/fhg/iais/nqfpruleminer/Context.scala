@@ -37,12 +37,14 @@ class Context(configFile: String) {
       case Failure(e) => fail(s"Incorrect configuration file:\n${e.getMessage}"); null
     }
 
-  val configFileName: String = configFile.toFile.nameWithoutExtension
+  private val configFilePath = configFile.toFile.parent
+  private val configFileName: String = configFile.toFile.nameWithoutExtension
 
   val statisticsOnly: Boolean = tryWithDefault(config.getBoolean("statisticsOnly"), false)
+  val statistics: File = configFilePath / s"${configFileName}_frequency.txt"
 
-  val outputFile: String = tryWithDefault(config getString "outputFile", s"${configFileName}_result")
   val outputFormat: String = tryWithDefault(config getString "outputFormat", "txt")
+  val outputFile: File = configFilePath / tryWithDefault(configFileName + "_" + (config getString "outputFile"), s"${configFileName}_result")
 
   val providerData: Provider.Data = {
     val providerTyp = tryFail(config getString "provider")
@@ -66,7 +68,6 @@ class Context(configFile: String) {
     }
   }
 
-  fail(outputFile.toFile.path.getParent.toFile.exists(), s"Path of output file ${outputFile.toFile.path.getParent} does not exíst.")
   fail(outputFormat == "txt" || outputFormat == "json", s"Output format $outputFormat not supported.")
 
   val numberOfBestSubgroups: Int = tryWithDefault(config getInt "numberOfBestSubgroups", 15)
@@ -168,7 +169,7 @@ class Context(configFile: String) {
               fail(s"Time attribute '$attribute'.is not contained in the list of features.")
               ""
             }
-          case Failure(exception) =>
+          case Failure(_) =>
             fail(s"Time attribute missing."); ""
         }
         val dateTimeFormatter =
@@ -206,9 +207,10 @@ class Context(configFile: String) {
       .toMap
 
   val simpleFeatures: Vector[Feature] =
-    simpleFeaturesNoPosition.map { case Feature(name, typ, condition, _) => Feature(name, typ, condition, attributeToPosition(name)) }
+    simpleFeaturesNoPosition
+      .map { case Feature(name, typ, condition, _) => Feature(name, typ, condition, attributeToPosition(name)) }
   //  private val attributeToFeature = simpleFeatures.map(feature => feature.name -> feature).toMap
-  val noSimpleFeatures: Int = simpleFeatures.length
+  val numberSimpleFeatures: Int = simpleFeatures.length
 
   val instanceFilter: Expression.BoolExpr =
     if (!config.hasPath("instanceFilter"))
@@ -252,10 +254,10 @@ class Context(configFile: String) {
         }
       )
       .zipWithIndex
-      .map { case (Feature(name, typ, condition, _), position) => Feature(name, typ, condition, position + noSimpleFeatures) }
+      .map { case (Feature(name, typ, condition, _), position) => Feature(name, typ, condition, position + numberSimpleFeatures) }
   }
 
-  private val noFeatures1 = noSimpleFeatures + compoundFeatures.length
+  private val noFeatures1 = numberSimpleFeatures + compoundFeatures.length
 
   val prefixFeatures: Vector[Feature] =
     tryWithDefault(config.getConfigList("prefixFeatures").asScala.toList, Nil)
@@ -407,9 +409,9 @@ class Context(configFile: String) {
 
   // Important: keep the order since this defines the access to value vectors
   val allFeatures: Vector[Feature] = simpleFeatures ++ compoundFeatures ++ prefixFeatures ++ rangeFeatures ++ aggregateFeatures
-  val noAllFeatures: Int = allFeatures.length
+  val numberAllFeatures: Int = allFeatures.length
 
-  private def typ2binning(typ: BinningType): Discretization =
+  def typ2binning(typ: BinningType): Discretization =
     typ match {
       case BinningType.NOBINNING => NoBinning
       case BinningType.ENTROPY(bins, overlapping) => Entropy(bins, overlapping)

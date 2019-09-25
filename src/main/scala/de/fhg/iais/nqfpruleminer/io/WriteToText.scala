@@ -2,12 +2,12 @@ package de.fhg.iais.nqfpruleminer.io
 
 import better.files._
 import de.fhg.iais.nqfpruleminer.actors.BestSubGroups.SubGroup
-import de.fhg.iais.nqfpruleminer.{Coding, Context, Distribution}
+import de.fhg.iais.nqfpruleminer.{Context, Distribution}
 import de.fhg.iais.utils.binomialSum
 
 class WriteToText(numberOfItems: Int,
                   kBestSubGroups: List[SubGroup],
-                  decode: Coding.DecodingTable,
+                  decode: Int => String,
                   rootDistribution: Distribution,
                   subgroupCounter: Long
                  )(implicit ctx: Context) {

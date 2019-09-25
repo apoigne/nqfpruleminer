@@ -1,7 +1,6 @@
 package de.fhg.iais.nqfpruleminer.actors
 
 import akka.actor.{Actor, ActorLogging, ActorRef, PoisonPill, Props}
-import de.fhg.iais.nqfpruleminer.Item.Position
 import de.fhg.iais.nqfpruleminer.io.Reader
 import de.fhg.iais.nqfpruleminer.{Item, _}
 
@@ -44,17 +43,17 @@ class Worker(listener: ActorRef)(implicit ctx: Context) extends Actor with Actor
   private val instances = new Worker.Table
   private val rootDistr: Distribution = Distribution()(ctx.numberOfTargetGroups)
 
-  private val intervalBinning: Map[Position, List[Bin]] =
-    ctx.simpleFeatures
-      .flatMap(
-        feature =>
-          feature.typ match {
-            case BinningType.INTERVAL(delimiters, overlapping) =>
-              Some(feature.position -> Discretization.delimiters2bins(delimiters, overlapping))
-            case _ =>
-              None
-          }
-      ).toMap
+//  private val intervalBinning: Map[Position, List[Bin]] =
+//    ctx.simpleFeatures
+//      .flatMap(
+//        feature =>
+//          feature.typ match {
+//            case BinningType.INTERVAL(delimiters, overlapping) =>
+//              Some(feature.position -> Discretization.delimiters2bins(delimiters, overlapping))
+//            case _ =>
+//              None
+//          }
+//      ).toMap
 
 //  println(intervalBinning.toString())
 
@@ -63,20 +62,19 @@ class Worker(listener: ActorRef)(implicit ctx: Context) extends Actor with Actor
       rootDistr.add(label)
       val filteredSimpleItems =
         simpleItems
-          .filter(_.value match { case Numeric(v,_) => !v.isNaN; case NoValue => false; case _ => true })
-          .flatMap {
-            case item@Valued(value: Numeric, position) =>
-              intervalBinning.get(position) match {
-                case Some(bins) =>
-                  value.toBin(bins).map(v => Valued(v, position))
-                case None =>
-                  List(item)
-              }
-            case item => List(item)
-          }
+          .filter(_.value match { case Numeric(v, _) => !v.isNaN; case NoValue => false; case _ => true })
+//          .flatMap {
+//            case item@Valued(value: Numeric, position) =>
+//              intervalBinning.get(position) match {
+//                case Some(bins) =>
+//                  value.toBin(bins).map(v => Valued(v, position))
+//                case None =>
+//                  List(item)
+//              }
+//            case item => List(item)
+//          }
 
       val allItems = filteredSimpleItems ++ derivedItems
-      instances.add(DataFrame(label, filteredSimpleItems, derivedItems))
       allItems.foreach(
         item =>
           distributions get item match {
@@ -84,15 +82,18 @@ class Worker(listener: ActorRef)(implicit ctx: Context) extends Actor with Actor
             case Some(distribution) => distribution.add(label)
           }
       )
+      instances.add(DataFrame(label, filteredSimpleItems, derivedItems))
+
     case Reader.Terminated =>
       listener ! Worker.Count(distributions.toList, rootDistr)
-    case Master.GenerateTrees(nqFpTrees, codingTable) =>
+
+    case Master.GenerateTrees(nqFpTrees, coding) =>
       instances.foreach {
         case DataFrame(label, baseItems, derivedItems) =>
-          val allItems = baseItems ++ derivedItems
+          val allItems = baseItems.flatMap(coding.toBin) ++ derivedItems
           if (allItems.nonEmpty) {
             rootDistr.add(label)
-            val sortedInstance = allItems.flatMap(codingTable.get).sortWith(_ < _)  // encoding is "partial"
+            val sortedInstance = allItems.map(coding.encode).sortWith(_ < _)  // encoding is "partial"
             for ((range, tree) <- nqFpTrees) {
               val instance = sortedInstance.filter(_ < range.end)
               if (instance.exists(_ >= range.start)) {

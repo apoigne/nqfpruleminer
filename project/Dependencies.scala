@@ -6,16 +6,16 @@ object Dependencies {
   private val sonatype = "Sonatype Release" at "https://oss.sonatype.org/content/repositories/releases"
   private val mvnrepository = "MVN Repo" at "http://mvnrepository.com/artifact"
 
-  val allResolvers = Seq(typesafe, sonatype, mvnrepository)
+  val allResolvers: Seq[MavenRepository] = Seq(typesafe, sonatype, mvnrepository)
 
   object Version {
     val opencsv = "3.8"
-    val scalaTest = "3.0.4"
+    val scalaTest = "3.0.8"
     val sprayJson = "1.3.4"
-    val akka = "2.5.12"
+    val akka = "2.5.23"
     val config = "1.3.2"
-    val clist = "3.3.0"
-    val betterFiles = "3.4.0"
+    val clist = "3.5.1"
+    val betterFiles = "3.8.0"
     val jodaTime = "2.9.9"
     val quill = "2.1.0"
     val mySql = "5.1.38"
@@ -23,7 +23,7 @@ object Dependencies {
     val h2 = "1.4.196"
     val scalikejJDCB = "3.1.0"
     val logback = "1.2.3"
-    val fastParse = "2.0.4"
+    val fastParse = "2.1.3"
   }
 
   private val scalaTest = "org.scalatest" %% "scalatest" % Version.scalaTest
@@ -44,7 +44,7 @@ object Dependencies {
   private val logback = "ch.qos.logback" % "logback-classic" % Version.logback
   private val fastParse = "com.lihaoyi" %% "fastparse" % Version.fastParse
 
-  val allDependencies = Seq(
+  val allDependencies: Seq[ModuleID] = Seq(
     akkaActor,
     akkaTestkit,
     scalaTest % "test",

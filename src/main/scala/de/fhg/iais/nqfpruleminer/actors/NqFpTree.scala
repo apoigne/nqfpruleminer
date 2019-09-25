@@ -10,11 +10,11 @@ object NqFpTree {
   case object Next
   case class Terminated(tree: ActorRef, subgroupCounter: Int)
 
-  def props(range: Range, numberOfItems: Int, lengthOfSubgroups: Int)(implicit ctx: Context) =
-    Props(classOf[NqFpTree], range.start, range.end, numberOfItems, lengthOfSubgroups, ctx)
+  def props(range: Range, numberOfItems: Int, lengthOfSubgroups: Int, master: ActorRef, bestSubgroups: ActorRef)(implicit ctx: Context) =
+    Props(classOf[NqFpTree], range.start, range.end, numberOfItems, lengthOfSubgroups, master, bestSubgroups, ctx)
 }
 
-class NqFpTree(lower: Int, upper: Int, numberOfItems: Int, lengthOfSubgroups: Int)(implicit ctx: Context) extends Actor with ActorLogging {
+class NqFpTree(lower: Int, upper: Int, numberOfItems: Int, lengthOfSubgroups: Int, master: ActorRef, bestSubgroups: ActorRef)(implicit ctx: Context) extends Actor with ActorLogging {
   import NqFpTree._
 
   log.info("Started")
@@ -47,7 +47,6 @@ class NqFpTree(lower: Int, upper: Int, numberOfItems: Int, lengthOfSubgroups: In
     case Next =>
       subGroup(depth) += 1
       val item = subGroup(depth)
-//      println(s"subGroup $depth $item ${optimisticEstimate(depth)(item)}  $minQ")
       if (depth > 0 && item < subGroup(depth - 1) || depth == 0 && item < upper) {
         if (depth + 1 < lengthOfSubgroups && optimisticEstimate(depth)(item) > minQ) {
           if (depth == 0) log.info(s"Evaluation of item $item started")
@@ -65,7 +64,7 @@ class NqFpTree(lower: Int, upper: Int, numberOfItems: Int, lengthOfSubgroups: In
           self ! Next
         } else {
           log.info("Terminated")
-          context.actorSelection(s"akka://nqfpminer/user/master") ! NqFpTree.Terminated(self, subgroupCounter)
+          master ! NqFpTree.Terminated(self, subgroupCounter)
         }
       } else if (depth > 0) {
         val _item = subGroup(depth)
@@ -75,7 +74,7 @@ class NqFpTree(lower: Int, upper: Int, numberOfItems: Int, lengthOfSubgroups: In
         self ! Next
       } else {
         log.info("Terminated")
-        context.actorSelection(s"akka://nqfpminer/user/master") ! NqFpTree.Terminated(self, subgroupCounter)
+        master ! NqFpTree.Terminated(self, subgroupCounter)
         self ! PoisonPill
       }
     case BestSubGroups.MinQ(_minQ) =>
@@ -85,6 +84,7 @@ class NqFpTree(lower: Int, upper: Int, numberOfItems: Int, lengthOfSubgroups: In
   private def pushParents(currentDepth: Int)(node: FPnode): Unit = {
     val distr = node.distr
 
+    @scala.annotation.tailrec
     def pushParents(_node: FPnode): Unit = {
       _node.parent match {
         case Some(_parent) if _parent.isRoot =>
@@ -106,6 +106,7 @@ class NqFpTree(lower: Int, upper: Int, numberOfItems: Int, lengthOfSubgroups: In
 
   private def popParents(currentDepth: Int)(node: FPnode): Unit =
     if (node.depth == currentDepth) {
+      @scala.annotation.tailrec
       def popParents(_node: FPnode): Unit = {
         _node.parent match {
           case Some(_parent) if _parent.isRoot =>
@@ -126,8 +127,6 @@ class NqFpTree(lower: Int, upper: Int, numberOfItems: Int, lengthOfSubgroups: In
         itemDistributions(_item).reset()
       }
     }
-
-  private val bestSubgroups = context.actorSelection("akka://nqfpminer/user/master/bestsubgroups")
 
   def checkQuality(item: Int, subGroup: List[Int], quality: Distribution => Quality): Double = {
     subgroupCounter += 1
@@ -167,6 +166,7 @@ class NqFpTree(lower: Int, upper: Int, numberOfItems: Int, lengthOfSubgroups: In
 
   // invariant: items are of decreasing order, children as well
   def lowerClosure(items: List[Int], nodes: List[FPnode]): List[Int] = {
+    @scala.annotation.tailrec
     def closureForNode(items: List[Int], node: FPnode): List[Int] = {
       items match {
         case Nil => Nil

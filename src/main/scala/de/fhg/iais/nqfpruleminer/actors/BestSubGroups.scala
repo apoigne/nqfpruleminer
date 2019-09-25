@@ -3,7 +3,7 @@ package de.fhg.iais.nqfpruleminer.actors
 import akka.actor.{Actor, ActorLogging, Props}
 import akka.util.Timeout
 import de.fhg.iais.nqfpruleminer.io.{WriteToJson, WriteToText}
-import de.fhg.iais.nqfpruleminer.{Coding, Context, Distribution, Item}
+import de.fhg.iais.nqfpruleminer.{Coding, Context, Distribution}
 import de.fhg.iais.utils.fail
 
 import scala.concurrent.ExecutionContextExecutor
@@ -18,11 +18,11 @@ object BestSubGroups {
   case class MinQ(value: Double)
   case class GenOutput(rootDistribution: Distribution, subgroupCounter: Int)
 
-  def props(numberOfItems: Int, decode: Coding.DecodingTable)(implicit ctx: Context) =
-    Props(classOf[BestSubGroups], numberOfItems, decode, ctx)
+  def props(numberOfItems: Int, coding: Coding)(implicit ctx: Context) =
+    Props(classOf[BestSubGroups], numberOfItems, coding, ctx)
 }
 
-class BestSubGroups(numberOfItems: Int, decode: IndexedSeq[Item])(implicit ctx: Context) extends Actor with ActorLogging {
+class BestSubGroups(numberOfItems: Int, coding: Coding)(implicit ctx: Context) extends Actor with ActorLogging {
   log.info("Started")
 
   import BestSubGroups._
@@ -71,6 +71,7 @@ class BestSubGroups(numberOfItems: Int, decode: IndexedSeq[Item])(implicit ctx: 
   }
 
   private def isExtensionOf(groups1: List[Int], groups2: List[Int]) = {
+    @scala.annotation.tailrec
     def isExtensionOf(groups1: List[Int], groups2: List[Int]): Boolean =
       (groups1, groups2) match {
         case (Nil, Nil) => true
@@ -78,7 +79,7 @@ class BestSubGroups(numberOfItems: Int, decode: IndexedSeq[Item])(implicit ctx: 
         case (_, Nil) => true
         case (g1 :: _groups1, g2 :: _groups2) if g1 == g2 => isExtensionOf(_groups1, _groups2)
         case (g1 :: _groups1, g2 :: _) if g1 < g2 => isExtensionOf(_groups1, groups2)
-        case (g1 :: _, g2 :: _groups2) => isExtensionOf(groups1, _groups2)
+        case (_ :: _, _ :: _groups2) => isExtensionOf(groups1, _groups2)
         case _ => groups1 == groups2
       }
 
@@ -101,8 +102,8 @@ class BestSubGroups(numberOfItems: Int, decode: IndexedSeq[Item])(implicit ctx: 
   private def genOutput(rootDistribution: Distribution, subgroupCounter: Int): Unit = {
 
     ctx.outputFormat match {
-      case "txt" => new WriteToText(numberOfItems, kBestSubGroups, decode, rootDistribution, subgroupCounter).write()
-      case "json" => new WriteToJson(numberOfItems, kBestSubGroups, decode, rootDistribution, subgroupCounter).write()
+      case "txt" => new WriteToText(numberOfItems, kBestSubGroups, coding.decode, rootDistribution, subgroupCounter).write()
+      case "json" => new WriteToJson(numberOfItems, kBestSubGroups, coding.decode, rootDistribution, subgroupCounter).write()
       case x => fail(s"Output format $x not supported.")
     }
     context.system.terminate() onComplete {

@@ -20,7 +20,6 @@ class Reader(provider: Provider, listener: ActorRef)(implicit ctx: Context) {
   private var counter = 0L
   private var lastDateTime: DateTime = DateTime.parse("0")
 
-
   def run(): Unit = {
     while (provider.hasNext) {
       val instance = provider.next
@@ -33,7 +32,8 @@ class Reader(provider: Provider, listener: ActorRef)(implicit ctx: Context) {
         }
       // non target values have label 0
 
-      val values = columnsUsed.map { case (feature, columnIndex) => Value(feature.typ, instance(columnIndex), label) }
+      val values = columnsUsed
+        .map { case (feature, columnIndex) => Value(feature.typ, instance(columnIndex), label) }
       if (!ctx.instanceFilter.eval(values)) {
         println(s"Instance (${instance.reduce(_ + "," + _)}) does not satisfy the instance filter rule.")
       } else {
