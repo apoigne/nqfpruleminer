@@ -14,7 +14,7 @@ lazy val ruleminer =
       organization := "de.fraunhofer.iais.kd",
       organizationName := "Fraunhofer IAIS, Knowledge Discovery",
       organizationHomepage := Some(url("http://www.iais.fraunhofer.de")),
-      scalaVersion := "2.12.8",
+      scalaVersion := "2.13.1",
       resolvers ++= Dependencies.allResolvers,
       libraryDependencies ++= Dependencies.allDependencies,
       scalacOptions := Seq(
@@ -30,11 +30,11 @@ lazy val ruleminer =
       mappings in Universal += {packageBin in Compile map { p => p -> "lib/ruleminer.jar" }}.value,
       mappings in Universal in packageBin += file("Readme.md") -> "Readme.md",
       mappings in Universal in packageBin ++= directory("docs"),
-      mappings in Universal in packageBin += file("examples/connect4/configuration.conf") -> "examples/connect4/configuration.conf",
+      mappings in Universal in packageBin += file("examples/connect4/configuration_equalfrequency.conf") -> "examples/connect4/configuration_equalfrequency.conf",
       mappings in Universal in packageBin += file("examples/connect4/data.csv") -> "examples/connect4/data.csv",
-      mappings in Universal in packageBin += file("examples/Kobi/flashing/configuration.conf") -> "examples/Kobi/flashing/configuration.conf",
+      mappings in Universal in packageBin += file("examples/Kobi/flashing/configuration_equalfrequency.conf") -> "examples/Kobi/flashing/configuration_equalfrequency.conf",
       mappings in Universal in packageBin += file("examples/Kobi/flashing/data.csv") -> "examples/Kobi/flashing/data.csv",
-      mappings in Universal in packageBin += file("examples/Kobi/trial/configuration.conf") -> "examples/Kobi/trial/configuration.conf",
+      mappings in Universal in packageBin += file("examples/Kobi/trial/configuration_equalfrequency.conf") -> "examples/Kobi/trial/configuration_equalfrequency.conf",
       mappings in Universal in packageBin += file("examples/Kobi/trial/data.csv") -> "examples/Kobi/trial/data.csv",
       crossPaths := false
 
