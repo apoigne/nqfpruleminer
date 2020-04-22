@@ -11,10 +11,10 @@ import scala.concurrent.duration._
 import scala.util.{Failure, Success}
 
 object BestSubGroups {
-  type Qual = Double
-  type Gen = Double
+  type Quality = Double
+  type Generality = Double
 
-  case class SubGroup(group: List[Int], distr: IndexedSeq[Int], quality: Qual, generality: Gen)
+  case class SubGroup(group: List[Int], distr: IndexedSeq[Int], quality: Quality, generality: Generality)
   case class MinQ(value: Double)
   case class GenOutput(rootDistribution: Distribution, subgroupCounter: Int)
 

@@ -18,7 +18,7 @@ class WriteToJson(numberOfItems: Int,
     val outputFile = ctx.outputFile + ".json"
     outputFile.toFile.overwrite("")
     if (kBestSubGroups.isEmpty) {
-      outputFile.toFile.append("Error: no best subgroups generated.")
+      outputFile.toFile.append("No best subgroups generated. maybe the configuration file is incorrect.")
     } else {
       val numberOfNodes = binomialSum(numberOfItems.toLong, ctx.lengthOfSubgroups)
 

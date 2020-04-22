@@ -18,7 +18,7 @@ object ruleminer extends CliMain[Unit](
   private val system = ActorSystem("nqfpminer")
 
   def run: Unit = {
-    implicit val ctx: Context = new Context(configFile)
+    implicit val ctx: Context = Context(configFile)
 
     println(s"Maximal number of best subgroups considered:  ${ctx.numberOfBestSubgroups}")
     println(s"Maximal length of best subgroups considered: ${ctx.lengthOfSubgroups}")

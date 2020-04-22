@@ -53,12 +53,14 @@ class Coding(item2frequency: Map[Item, Distribution])(implicit ctx: Context) {
         .flatMap { case (value, distribution) => item2binnedItem(value).map(item => item -> distribution) }
         .toList
         .groupBy(_._1)
+        .view
         .mapValues(_.map(_._2).map(_.sum).sum)
         .toList
         .sortWith((x0, x1) => x0._2 > x1._2)
     } else {
       item2frequency
-        .mapValues(_.sum)
+        .view.
+        mapValues(_.sum)
         .toList
         .sortWith((x0, x1) => x0._2 > x1._2)
     }
@@ -74,7 +76,7 @@ class Coding(item2frequency: Map[Item, Distribution])(implicit ctx: Context) {
 
   val numberOfItems: Int = decodingTable.length
 
-  def encode: Item =>Int = (item: Item) => codingTable(item)
+  def encode: Item => Int = (item: Item) => codingTable(item)
   def decode: Int => String = (i: Int) => decodingTable(i).toString
   def toBin: Item => List[Item] = (item: Item) => item2binnedItem.getOrElse(item, Nil)
 }

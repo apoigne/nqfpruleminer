@@ -5,6 +5,8 @@ import de.fhg.iais.nqfpruleminer.actors.BestSubGroups.SubGroup
 import de.fhg.iais.nqfpruleminer.{Context, Distribution}
 import de.fhg.iais.utils.binomialSum
 
+import scala.util.{Failure, Success, Try}
+
 class WriteToText(numberOfItems: Int,
                   kBestSubGroups: List[SubGroup],
                   decode: Int => String,
@@ -14,8 +16,10 @@ class WriteToText(numberOfItems: Int,
 
   def write(): Unit = {
     val outputFile = ctx.outputFile + ".txt"
-    outputFile.toFile.overwrite("")
-    outputFile.toFile.overwrite("")
+    Try(outputFile.toFile.overwrite("")) match {
+      case Success(value) =>
+      case Failure(exception) =>
+    }
     if (kBestSubGroups.isEmpty) {
       outputFile.toFile.append("Error: no best subgroups generated.")
     } else {
@@ -23,8 +27,8 @@ class WriteToText(numberOfItems: Int,
       val numberOfNodes = binomialSum(numberOfItems.toLong, ctx.lengthOfSubgroups)
 
       val output =
-//        s"Dataset: ${ctx.dataFiles}\n\n" +
-        s"Target:  feature: ${ctx.targetName}, values: $targetValues\n" +
+        s"Configuration file: ${ctx.configFile}\n\n" +
+          s"Target:  feature: ${ctx.targetName}, values: $targetValues\n" +
           s"Quality function: ${ctx.qualityMode}\n" +
           s"Number of items: $numberOfItems\n\n" +
           s"TargetValueDistribution: " +
@@ -46,11 +50,11 @@ class WriteToText(numberOfItems: Int,
                 s"\nSize = ${sg.distr.sum}, Generality = ${sg.generality}, " + {
                 ctx.qualityMode match {
                   case "Piatetsky" =>
-                    s"p = ${sg.distr(0).toDouble / sg.distr.sum.toDouble}"
+                    s"Probability = ${sg.distr(0) / sg.distr.sum.toDouble}"
                   case "Binomial" =>
-                    s"p = ${sg.distr(0).toDouble / sg.distr.sum.toDouble}"
+                    s"Probability = ${sg.distr(0) / sg.distr.sum.toDouble}"
                   case _ =>
-                    (0 until ctx.numberOfTargetGroups).map(i => s"p($i) = ${sg.distr(i).toDouble / sg.distr.sum.toDouble}").reduce(_ + ", " + _)
+                    (0 until ctx.numberOfTargetGroups).map(i => s"Probability($i) = ${sg.distr(i) / sg.distr.sum.toDouble}").reduce(_ + ", " + _)
                 }
               } + "\n"
           }.reduce(_ + _) +

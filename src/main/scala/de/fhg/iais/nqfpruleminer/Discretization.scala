@@ -3,6 +3,9 @@ package de.fhg.iais.nqfpruleminer
 import de.fhg.iais.nqfpruleminer.Item.Position
 import de.fhg.iais.nqfpruleminer.Value.Label
 import de.fhg.iais.utils.fail
+import com.typesafe.scalalogging._
+
+import Ordering.Double.IeeeOrdering
 
 object Discretization {
   def delimiters2bins(delimiters: List[Double], overlapping: Boolean = false): List[Bin] = {
@@ -84,21 +87,22 @@ case class EqualFrequency(numberOfBins: Int, overlapping: Boolean = false) exten
         counter = counterPlusWeight
       }
     }
-    fail(index == numberOfBins - 1, s"$index != $numberOfBins")
+//    fail(index == numberOfBins - 1, s"$index != $numberOfBins")
     Discretization.delimiters2bins(values.min +: values.max +: delimiters.toList, overlapping)
   }
 }
 
 case class Entropy(numberOfBins: Int, overlapping: Boolean = false) extends Discretization {
   private def log2(x: Double) = math.log(x) / math.log(2.0)
+  private val log = Logger("Entropy")
 
   def genBins(freqs: Map[(Double, Label), Distribution])(implicit ctx: Context, position: Position): List[Bin] = {
     val data = freqs.filterNot(_._1._1.isNaN)
     val values = data.keys.map(_._1).toList.distinct
     fail(values.lengthCompare(numberOfBins) > 0, s"Attribute '${ctx.allFeatures(position).name}' has less values than bins")
     val delimiters = partition(EBin(data), numberOfBins - 1)
-    fail(delimiters.lengthCompare(numberOfBins - 1) == 0,
-      s"Entropy binning for '${ctx.allFeatures(position).name}' generates '${delimiters.length + 1}' bins, required are '$numberOfBins' bins")
+    if (delimiters.lengthCompare(numberOfBins - 1) == 0)
+      log.info(s"Entropy binning for '${ctx.allFeatures(position).name}' generates only '${delimiters.length + 1}' bins, specified are '$numberOfBins' bins")
     Discretization.delimiters2bins(values.min +: values.max +: delimiters, overlapping)
   }
 
@@ -117,7 +121,7 @@ case class Entropy(numberOfBins: Int, overlapping: Boolean = false) extends Disc
       }
 
   private case class EBin(freqs: Map[(Double, Label), Distribution]) {
-    private val data = freqs.mapValues(_.sum)
+    private val data = freqs.view.mapValues(_.sum)
     val values: List[Double] = data.keys.map(_._1).toList.distinct
     val size: Double = data.values.sum.toDouble
     val noTargets: Double = Set(freqs.keys.map(_._2)).size.toDouble

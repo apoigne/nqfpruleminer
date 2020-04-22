@@ -122,6 +122,8 @@ sealed trait Value extends Ordered[Value] {
       case (Nominal(v1), Nominal(v2)) => v1.compare(v2)
       case (Logical(v1), Logical(v2)) => v1.compare(v2)
       case (Numeric(v1, _), Numeric(v2, _)) => v1.compare(v2)
+      case (Numeric(v1, _), Nominal(v2)) => Try(v2.toDouble) match { case Success(value) => v1.compare(value) }
+      case (Nominal(v1), Numeric(v2,_)) => Try(v1.toDouble) match { case Success(value) => value.compare(v2) }
       case (Date(v1), Date(v2)) => v1.getMillis.compare(v2.getMillis)
       case (Bin(lo1, hi1), Bin(lo2, hi2)) =>
         if (lo1 == lo2 && hi1 == hi2) 0

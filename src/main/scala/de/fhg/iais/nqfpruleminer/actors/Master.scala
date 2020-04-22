@@ -67,6 +67,7 @@ class Master(implicit ctx: Context) extends Actor with ActorLogging {
         val filteredItems =
           itemFrequencies
             .filter { case (_, _distr) => _distr.probability.forall(_ >= ctx.minP) }
+            .view
             .mapValues(quality)
             .toList
             .filter({ case (_, Quality(_, g, _)) => g >= ctx.minG })

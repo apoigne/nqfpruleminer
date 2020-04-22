@@ -10,7 +10,7 @@ import de.fhg.iais.utils._
 import org.joda.time.DateTime
 import org.joda.time.format.DateTimeFormat
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import scala.util.{Failure, Success, Try}
 
 object AggregationOp extends Enumeration {
@@ -28,7 +28,7 @@ object AggregationOp extends Enumeration {
     }
 }
 
-class Context(configFile: String) {
+case class Context(configFile: String) {
   fail(configFile.toFile.exists(), s"Configuration file ${configFile.toFile.path} does not exist")
 
   private val config: Config =
@@ -44,7 +44,7 @@ class Context(configFile: String) {
   val statistics: File = configFilePath / s"${configFileName}_frequency.txt"
 
   val outputFormat: String = tryWithDefault(config getString "outputFormat", "txt")
-  val outputFile: File = configFilePath / tryWithDefault(configFileName + "_" + (config getString "outputFile"), s"${configFileName}_result")
+  val outputFile: File = configFilePath / s"${configFileName}_result"
 
   val providerData: Provider.Data = {
     val providerTyp = tryFail(config getString "provider")
@@ -177,7 +177,7 @@ class Context(configFile: String) {
             case Success(f) =>
               Try(DateTimeFormat.forPattern(f)) match {
                 case Success(p) => p
-                case Failure(exception) => fail(exception.getMessage); null
+                case Failure(exception) => fail(s"Time format $f wrong: ${exception.getMessage}"); null
               }
             case Failure(e) => fail("Time format is missing"); null
           }
@@ -355,13 +355,12 @@ class Context(configFile: String) {
                   if (condition.attributes.forall(simpleFeatures.map(_.name).contains(_))) {
                     condition
                   } else if (attributes.isEmpty && condition.attributes.nonEmpty) {
-                    fail(s"The list of attributes of an aggregator is empty. But there is a condition with attributes" +
-                      s" '{${condition.attributes.reduce(_ + "," + _)}}'.")
+                    fail(s"The list of attributes of an aggregator is empty. But condition '$cond' has attributes '{${condition.attributes.reduce(_ + "," + _)}}'.")
                     null
                   } else if (attributes.isEmpty && condition.attributes.nonEmpty) {
                     condition
                   } else {
-                    fail(s"Only attributes '{${attributes.reduce(_ + "," + _)}}' are allowed in a condition " +
+                    fail(s"Only attributes '{${attributes.reduce(_ + "," + _)}}' are allowed in condition '$cond' '" +
                       s"for an aggregator. Found attributes: '{${condition.attributes.reduce(_ + "," + _)}}'")
                     null
                   }
@@ -402,7 +401,8 @@ class Context(configFile: String) {
       )
       .zipWithIndex
       .map {
-        case (Feature(name, typ, condition, _), position) => Feature(name, typ, condition, position + noFeatures3)
+        case (Feature(name, typ, condition, _), position) =>
+          Feature(name, typ, condition, position + noFeatures3)
       }
 
   val requiresAggregation: Boolean = aggregateFeatures.nonEmpty
@@ -421,7 +421,7 @@ class Context(configFile: String) {
     }
 
   val binning: Map[Position, Discretization] =
-    simpleFeatures.map(
+    (simpleFeatures ++ aggregateFeatures).map(
       feature =>
         feature.typ match {
           case aggr: DerivedType.AGGREGATE => feature.position -> typ2binning(aggr.binning)

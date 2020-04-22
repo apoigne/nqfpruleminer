@@ -16,7 +16,7 @@ object Expression {
   case class Id(name: String, position: Position = -1) extends Literal {
     def attributes: Set[String] = Set(name)
     def eval(implicit env: Vector[Value]): Value = env(position)
-    def updatePosition(implicit posMap: Map[String, Position]): Literal = Id(name, posMap(name))
+    def updatePosition(implicit posMap: Map[String, Position]): Literal = Id(name, posMap.getOrElse(name, -1))
   }
 
   case class Val(value: Value) extends Literal {
@@ -42,32 +42,32 @@ object Expression {
   }
   case class EQ(arg1: Literal, arg2: Literal) extends BoolExpr {
     def attributes: Set[String] = arg1.attributes ++ arg2.attributes
-    def eval(implicit env: Vector[Value]): Boolean = arg1.eval == arg2.eval
+    def eval(implicit env: Vector[Value]): Boolean = arg1.eval.compare(arg2.eval) == 0
     def updatePosition(implicit posMap: Map[String, Position]): BoolExpr = EQ(arg1.updatePosition, arg2.updatePosition)
   }
   case class NE(arg1: Literal, arg2: Literal) extends BoolExpr {
     def attributes: Set[String] = arg1.attributes ++ arg2.attributes
-    def eval(implicit env: Vector[Value]): Boolean = arg1.eval != arg2.eval
+    def eval(implicit env: Vector[Value]): Boolean = arg1.eval.compare(arg2.eval) != 0
     def updatePosition(implicit posMap: Map[String, Position]): BoolExpr = NE(arg1.updatePosition, arg2.updatePosition)
   }
   case class GT(arg1: Literal, arg2: Literal) extends BoolExpr {
     def attributes: Set[String] = arg1.attributes ++ arg2.attributes
-    def eval(implicit env: Vector[Value]): Boolean = arg1.eval > arg2.eval
+    def eval(implicit env: Vector[Value]): Boolean = arg1.eval.compare(arg2.eval) > 0
     def updatePosition(implicit posMap: Map[String, Position]): BoolExpr = GT(arg1.updatePosition, arg2.updatePosition)
   }
   case class GE(arg1: Literal, arg2: Literal) extends BoolExpr {
     def attributes: Set[String] = arg1.attributes ++ arg2.attributes
-    def eval(implicit env: Vector[Value]): Boolean = arg1.eval >= arg2.eval
+    def eval(implicit env: Vector[Value]): Boolean = arg1.eval.compare(arg2.eval) >= 0
     def updatePosition(implicit posMap: Map[String, Position]): BoolExpr = GE(arg1.updatePosition, arg2.updatePosition)
   }
   case class LT(arg1: Literal, arg2: Literal) extends BoolExpr {
     def attributes: Set[String] = arg1.attributes ++ arg2.attributes
-    def eval(implicit env: Vector[Value]): Boolean = arg1.eval < arg2.eval
+    def eval(implicit env: Vector[Value]): Boolean = arg1.eval.compare(arg2.eval) < 0
     def updatePosition(implicit posMap: Map[String, Position]): BoolExpr = LT(arg1.updatePosition, arg2.updatePosition)
   }
   case class LE(arg1: Literal, arg2: Literal) extends BoolExpr {
     def attributes: Set[String] = arg1.attributes ++ arg2.attributes
-    def eval(implicit env: Vector[Value]): Boolean = arg1.eval <= arg2.eval
+    def eval(implicit env: Vector[Value]): Boolean = arg1.eval.compare(arg2.eval) <= 0
     def updatePosition(implicit posMap: Map[String, Position]): BoolExpr = LE(arg1.updatePosition, arg2.updatePosition)
   }
   case class NOT(arg: BoolExpr) extends BoolExpr {
@@ -99,8 +99,8 @@ object Expression {
   private def integral[_: P] = P("0" | CharIn("1-9") ~ digits.?)
 //  private def number[_: P] = P(CharIn("+-").? ~ integral ~ fractional.? ~ exponent.? ~ !CharIn("a to z")).!.map(x => Val(Numeric(x.toDouble)))
 
-  private def number[_: P]:P[Expression.Val] = P(  CharIn("+\\-").? ~ integral ~ fractional.? ~ exponent.? ).!.map(x => Val(Numeric(x.toDouble)))
-  private def id[_: P]: P[Literal] = P(CharIn("a-zA-Z") ~ CharIn("a-zA-Z1-9", "_").rep.?).!.map(Id(_))
+  private def number[_: P]: P[Expression.Val] = P(CharIn("+\\-").? ~ integral ~ fractional.? ~ exponent.?).!.map(x => Val(Numeric(x.toDouble)))
+  private def id[_: P]: P[Literal] = P(CharIn("a-zA-Z") ~ CharIn("a-zA-Z1-9.", "_").rep.?).!.map(Id(_))
 
   private def strChars[_: P] = P(CharsWhile(c => !"\"\\".contains(c)))
   def string[_: P]: P[Literal] = P(space ~ "\"" ~/ strChars.rep.! ~ "\"").map(s => Val(Nominal(s)))
