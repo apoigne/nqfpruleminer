@@ -9,7 +9,7 @@ object Dependencies {
   val allResolvers: Seq[MavenRepository] = Seq(typesafe, sonatype, mvnrepository)
 
   object Version {
-    val opencsv = "4.0"
+    val opencsv = "3.8"
     val scalaTest = "3.0.8"
     val sprayJson = "1.3.5"
     val akka = "2.5.23"

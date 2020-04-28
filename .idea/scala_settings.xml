@@ -9,8 +9,4 @@
     </option>
     <option name="showArgumentsToByNameParams" value="true" />
   </component>
-  <component name="WorksheetDefaultProjectSettings">
-    <option name="compilerProfileName" value="Default" />
-    <option name="moduleName" value="ruleminer" />
-  </component>
 </project>

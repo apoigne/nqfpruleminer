@@ -13,10 +13,10 @@ import org.joda.time.format.DateTimeFormat
 import scala.jdk.CollectionConverters._
 import scala.util.{Failure, Success, Try}
 
-object AggregationOp extends Enumeration {
+object AggregationOperator extends Enumeration {
   val exists, count, sum, max, min, mean = Value
 
-  def apply(op: String): AggregationOp.Value =
+  def apply(op: String): AggregationOperator.Value =
     op.toLowerCase() match {
       case "exists" => exists
       case "count" => count
@@ -29,7 +29,7 @@ object AggregationOp extends Enumeration {
 }
 
 case class Context(configFile: String) {
-  fail(configFile.toFile.exists(), s"Configuration file ${configFile.toFile.path} does not exist")
+  fail(configFile.toFile.exists(), s"Configuration file ${configFile.toFile.path} does not exist. Present path is ${System.getProperty("user.dir")}")
 
   private val config: Config =
     Try(ConfigFactory.parseFile(configFile.toFile.toJava)) match {
@@ -325,9 +325,9 @@ case class Context(configFile: String) {
           if (seqId.nonEmpty)
             fail(features.map(_.name).contains(seqId.get),
               s"The seqId attribute '$seqId' of an aggregation field is not contained in the list of attributes.")
-          val operator = tryFail(AggregationOp(config.getString("operator").toLowerCase))
+          val operator = tryFail(AggregationOperator(config.getString("operator").toLowerCase))
           val attributes =
-            if (operator == AggregationOp.count || operator == AggregationOp.exists) {
+            if (operator == AggregationOperator.count || operator == AggregationOperator.exists) {
               Try(config.getStringList("attributes").asScala.toList) match {
                 case Success(attrs) => attrs
                 case Failure(e) => fail(s"For operator 'count' or 'exists' the key 'attributes' is required."); null
@@ -367,13 +367,30 @@ case class Context(configFile: String) {
                 case Failure(e) => fail(e.getLocalizedMessage); null
               }
           val condition = (env: Vector[Value]) => conditionExpr.updatePosition(this.attributeToPosition).eval(env)
-          val periodsAsString = tryFail(config.getStringList("periods").asScala.toList)
-          periodsAsString
-            .map(p => (p, Period(p)))
+          val periods = tryFail(config.getConfigList("periods").asScala.toList)
+          periods
             .map {
-              case (timeFrame, tf) =>
-                if (operator == AggregationOp.exists || operator == AggregationOp.count) {
-                  val name = s"Aggregate($timeFrame)"
+              conf =>
+                if (timeframe.isEmpty) {
+                  val offset = tryOption(conf.getInt("offset"))
+                  val length = tryFail(conf.getInt("length"))
+                  if (offset.isEmpty)
+                    DiscretePeriod( s"$length", 0, length)
+                  else
+                  DiscretePeriod( s"$length after $offset", offset.get, length)
+                } else {
+                  val offset = tryOption(conf.getString("offset"))
+                  val length = tryFail(conf.getString("length"))
+                  if (offset.isEmpty)
+                    TimePeriod(length, 0, Period(length))
+                  else
+                    TimePeriod(s"$length after $offset", Period(offset.get), Period(length))
+                }
+            }
+            .map {
+              period =>
+                if (operator == AggregationOperator.exists || operator == AggregationOperator.count) {
+                  val name = s"Aggregate(${period.asString})"
                   val minimum =
                     if (config.hasPath("minimum"))
                       Try(config.getInt("minimum")) match {
@@ -382,9 +399,9 @@ case class Context(configFile: String) {
                       }
                     else
                       0
-                  Feature(name, DerivedType.COUNT(seqIdPos, positions, minimum, condition, operator == AggregationOp.exists, tf))
+                  Feature(name, DerivedType.COUNT(seqIdPos, positions, minimum, condition, operator == AggregationOperator.exists, period))
                 } else {
-                  val name = s"Aggregate($timeFrame)"
+                  val name = s"Aggregate(${period.asString})"
                   val binning = tryFail(genBinnigType("an aggregator", config.getConfig("binning")))
                   val minimum =
                     if (config.hasPath("minimum"))
@@ -394,7 +411,7 @@ case class Context(configFile: String) {
                       }
                     else
                       Double.NegativeInfinity
-                  Feature(name, DerivedType.AGGREGATE(seqIdPos, positions.head, operator, minimum, condition, binning, tf))
+                  Feature(name, DerivedType.AGGREGATE(seqIdPos, positions.head, operator, minimum, condition, binning, period))
                 }
             }
         }
@@ -402,7 +419,7 @@ case class Context(configFile: String) {
       .zipWithIndex
       .map {
         case (Feature(name, typ, condition, _), position) =>
-          Feature(name, typ, condition, position + noFeatures3)
+          Feature(name, typ, condition, noFeatures3 + position)
       }
 
   val requiresAggregation: Boolean = aggregateFeatures.nonEmpty

@@ -23,7 +23,10 @@ class Aggregator(listener: ActorRef)(implicit ctx: Context) extends Actor with A
 
   def receive: Receive = {
     case TimedDataFrame(label, dateTime, baseItems, derivedItems) =>
-      val aggregatedItems = histories.map(history => history(label, dateTime, baseItems))
+      val aggregatedItems = histories.map(history => history(label, Some(dateTime), baseItems))
+      listener ! DataFrame(label, baseItems, derivedItems ++ aggregatedItems.flatten)
+    case DataFrame(label, baseItems, derivedItems) =>
+      val aggregatedItems = histories.map(history => history(label, None, baseItems))
       listener ! DataFrame(label, baseItems, derivedItems ++ aggregatedItems.flatten)
     case msg@Broadcast(Reader.Terminated) =>
       listener ! msg

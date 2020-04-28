@@ -52,7 +52,7 @@ object BinningType {
 
 sealed trait AggregatorType extends DataType {
   val seqIdPos: Option[Int]
-  val history: Period.Length
+  val history: Period
   val condition: Vector[Value] => Boolean
 }
 
@@ -60,11 +60,11 @@ object DerivedType {
   case class PREFIX(number: Int, position: Position) extends DataType
   case class RANGE(lo: Double, hi: Double, position: Position) extends DataType
   case class COMPOUND(positions: List[Int]) extends DataType
-  case class AGGREGATE(seqIdPos: Option[Int], position: Int, op: AggregationOp.Value, minimum: Double,
-                       condition: Vector[Value] => Boolean, binning: BinningType, history: Period.Length
+  case class AGGREGATE(seqIdPos: Option[Int], position: Int, op: AggregationOperator.Value, minimum: Double,
+                       condition: Vector[Value] => Boolean, binning: BinningType, history: Period
                       ) extends AggregatorType
   case class COUNT(seqIdPos: Option[Int], positions: List[Int], minimum: Int,
-                   condition: Vector[Value] => Boolean, existsOnly: Boolean, history: Period.Length
+                   condition: Vector[Value] => Boolean, existsOnly: Boolean, history: Period
                   ) extends AggregatorType
 }
 
@@ -207,7 +207,8 @@ case class Valued(value: Value, position: Position)(implicit ctx: Context) exten
 }
 case class Compound(items: List[Item], position: Position = -1) extends Item {
   val getLabelledDouble: Option[(Double, Label)] = None
-  override def toString: String = if (items.isEmpty) "" else items.map(_.toString).reduce(_ + " && " + _)
+  override def toString: String =
+    if (items.isEmpty) "" else items.map(_.toString).reduce(_ + " && " + _)
 }
 
 case class GroupBy(seqId: Option[Item], item: Item, position: Position) extends Item {
@@ -226,7 +227,7 @@ case class Counted(item: Item, result: Int, position: Position = -1)(implicit ct
     s"${ctx.allFeatures(position).name}.count(${item.toString}) == $result"
 }
 
-case class Aggregated(op: AggregationOp.Value, valuePos: Position, result: Double, position: Position = -1)
+case class Aggregated(op: AggregationOperator.Value, valuePos: Position, result: Double, position: Position = -1)
                      (implicit ctx: Context) extends Item {
   val getLabelledDouble: Option[(Double, Label)] = None
   override def toString: String =

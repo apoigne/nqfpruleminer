@@ -6,7 +6,7 @@ import org.scalatest.FunSuite
 
 class DiscretizationTest extends FunSuite {
 
-  implicit val ctx: Context = Context("examples/istAnalyse/configuration_equalfrequency.conf")
+  implicit val ctx: Context = Context("examples/istAnalyse/configuration.conf")
   implicit val position: Position = 0
 
   private val l =
