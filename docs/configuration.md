@@ -463,7 +463,6 @@ For each period, a new feature attribute is generated according to the following
   Aggregate(<period>).<operator>(<item> && ... && <item>)  == <double>
   ```
 
-  
 
 where the items comprise all the attributes listed under the keyes `groupBy` and `attributes`.
 
@@ -480,7 +479,7 @@ If a time attribute is provided, instances before a `start` time and after and `
 
 Further, given that an instance filter is specified by
 
-```
+```json
 instanceFilter = <condition>
 ```
 
@@ -547,8 +546,8 @@ Size = 338, Generality = 0.7477876106194691, Probability = 0.9674556213017751
 The first line of each entry specifies the subgroups (in this example occur only singletons), the second line the quality according to the qualöity function used. The third line comprises the following information:
 
 -  `Size`: How often did the subgroup occur in the data set
-- `Generality`: 
-- `Probability`: 
+- `Generality`: The fraction of number of occurrences of a subgroup by the number of occurrences of all subgroups
+- `Probability`: The fractions pof the of number of occurrences of the subgroup labelled with a target label to the number of overall occurences of the subgroup (resp. a a vector of fractions if more than one label is specified for the target attribute)
 
 Another example is
 

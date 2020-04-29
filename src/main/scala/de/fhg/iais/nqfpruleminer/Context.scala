@@ -324,7 +324,7 @@ case class Context(configFile: String) {
           val seqId = tryWithDefault(Some(config.getString("groupBy")), None)
           if (seqId.nonEmpty)
             fail(features.map(_.name).contains(seqId.get),
-              s"The seqId attribute '$seqId' of an aggregation field is not contained in the list of attributes.")
+              s"The seqId attribute '$seqId' of an aggregation feature is not contained in the list of attributes.")
           val operator = tryFail(AggregationOperator(config.getString("operator").toLowerCase))
           val attributes =
             if (operator == AggregationOperator.count || operator == AggregationOperator.exists) {
@@ -338,11 +338,13 @@ case class Context(configFile: String) {
                 case Failure(e) => fail(s"For operator 'count' or 'exists' the key 'attributes' is required."); null
               }
             }
-          attributes.foreach(
+          attributes.foreach {
             attribute =>
               fail(features.map(_.name).contains(attribute),
-                s"The attribute '$attribute' of an aggregation field is not contained in the list of attributes.")
-          )
+                s"The attribute '$attribute' of an aggregation feature is not contained in the list of attributes.")
+              fail(!targetName.contains(attribute),
+                s"The attribute '$attribute' of an aggregation feature is the target attribute.")
+          }
           val seqIdPos = seqId.map(attributeToPosition(_))
           val positions = attributes.map(attributeToPosition)
           val conditionExpr =
@@ -374,24 +376,24 @@ case class Context(configFile: String) {
                 if (timeframe.isEmpty) {
                   val offset = tryOption(conf.getInt("offset"))
                   val length = tryFail(conf.getInt("length"))
-                  if (offset.isEmpty)
-                    DiscretePeriod( s"$length", 0, length)
+                  if (offset.isEmpty || offset.get == 0)
+                    DiscretePeriod(s"over $length instants", 0, length)
                   else
-                  DiscretePeriod( s"$length after $offset", offset.get, length)
+                    DiscretePeriod(s"over $length instants offset ${offset.get}", offset.get, length)
                 } else {
                   val offset = tryOption(conf.getString("offset"))
                   val length = tryFail(conf.getString("length"))
-                  if (offset.isEmpty)
-                    TimePeriod(length, 0, Period(length))
+                  if (offset.isEmpty || Period(offset.get) == 0)
+                    TimePeriod(s"over $length", 0, Period(length))
                   else
-                    TimePeriod(s"$length after $offset", Period(offset.get), Period(length))
+                    TimePeriod(s"over $length offset ${offset.get}", Period(offset.get), Period(length))
                 }
             }
             .map {
               period =>
                 if (operator == AggregationOperator.exists || operator == AggregationOperator.count) {
                   val name = s"Aggregate(${period.asString})"
-                  val minimum =
+                  val minimum: Int =
                     if (config.hasPath("minimum"))
                       Try(config.getInt("minimum")) match {
                         case Success(min) => min
@@ -403,7 +405,7 @@ case class Context(configFile: String) {
                 } else {
                   val name = s"Aggregate(${period.asString})"
                   val binning = tryFail(genBinnigType("an aggregator", config.getConfig("binning")))
-                  val minimum =
+                  val minimum: Double =
                     if (config.hasPath("minimum"))
                       Try(config.getDouble("minimum")) match {
                         case Success(min) => min
