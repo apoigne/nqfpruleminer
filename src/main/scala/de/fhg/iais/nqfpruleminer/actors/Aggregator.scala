@@ -5,7 +5,6 @@ import akka.routing.Broadcast
 import akka.util.Timeout
 import de.fhg.iais.nqfpruleminer._
 import de.fhg.iais.nqfpruleminer.io.Reader
-import de.fhg.iais.utils.fail
 
 import scala.concurrent.ExecutionContextExecutor
 import scala.concurrent.duration._
@@ -30,7 +29,5 @@ class Aggregator(listener: ActorRef)(implicit ctx: Context) extends Actor with A
       listener ! DataFrame(label, baseItems, derivedItems ++ aggregatedItems.flatten)
     case msg@Broadcast(Reader.Terminated) =>
       listener ! msg
-    case msg: DataFrame =>
-      fail(s"Internal error: aggregator got a dataframe instead of a timed dataframe")
   }
 }

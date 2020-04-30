@@ -15,7 +15,7 @@ class WriteToText(numberOfItems: Int,
                  )(implicit ctx: Context) {
 
   def write(): Unit = {
-    val outputFile = ctx.outputFile + ".txt"
+    val outputFile = ctx.outputFile.pathAsString + ".txt"
     Try(outputFile.toFile.overwrite("")) match {
       case Success(value) =>
       case Failure(exception) =>
@@ -23,7 +23,7 @@ class WriteToText(numberOfItems: Int,
     if (kBestSubGroups.isEmpty) {
       outputFile.toFile.append("Error: no best subgroups generated.")
     } else {
-      val targetValues = ctx.targetGroups.map(_.toString).reduce(_ + "," + _)
+      val targetValues = ctx.targetGroups.reduce(_ + "," + _)
       val numberOfNodes = binomialSum(numberOfItems.toLong, ctx.lengthOfSubgroups)
 
       val output =
@@ -45,7 +45,7 @@ class WriteToText(numberOfItems: Int,
           kBestSubGroups.reverse.zipWithIndex.map {
             case (sg: SubGroup, index: Int) =>
               s"\n${index + 1}. " +
-                sg.group.sorted.map(decode).map(_.toString).reduce(_ + " && " + _) +
+                sg.group.sorted.map(decode).reduce(_ + " && " + _) +
                 s"\nQuality = ${sg.quality}" +
                 s"\nSize = ${sg.distr.sum}, Generality = ${sg.generality}, " + {
                 ctx.qualityMode match {

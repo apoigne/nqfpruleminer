@@ -10,6 +10,7 @@ lazy val commonSettings = Seq(
   organizationName := "Fraunhofer IAIS, Knowledge Discovery",
   organizationHomepage := Some(url("http://www.iais.fraunhofer.de")),
   scalaVersion := "2.13.1",
+  maintainer := "axel.poigne@iais.fraunhofer.de",
   libraryDependencies ++= Dependencies.allDependencies,
   scalacOptions := Seq(
     "-deprecation",
@@ -33,26 +34,10 @@ lazy val ruleminer =
       mainClass := Some("ruleminer"),
       version := "0.6",
 
-      organization := "de.fraunhofer.iais.kd",
-      organizationName := "Fraunhofer IAIS, Knowledge Discovery",
-      organizationHomepage := Some(url("http://www.iais.fraunhofer.de")),
-      scalaVersion := "2.13.1",
-      resolvers ++= Dependencies.allResolvers,
-      libraryDependencies ++= Dependencies.allDependencies,
-      scalacOptions := Seq(
-        "-deprecation",
-        "-unchecked",
-        "-language:_",
-        "-Xlint"
-      ),
-      javacOptions := Seq(
-        "-Xlint:unchecked",
-        "-Xlint:deprecation"
-      ),
       mappings in Universal += {packageBin in Compile map { p => p -> "lib/ruleminer.jar" }}.value,
-      mappings in Universal += file("Readme.md") -> "Readme.md",
       mappings in Universal ++= directory("docs"),
       mappings in Universal ++= directory("examples"),
+      mappings in Universal += file("Readme.md") -> "Readme.md",
       crossPaths := false,
 
       dockerBaseImage := "openjdk:latest",

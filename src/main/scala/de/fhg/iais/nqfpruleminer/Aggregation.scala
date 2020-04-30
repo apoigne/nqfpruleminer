@@ -2,6 +2,8 @@ package de.fhg.iais.nqfpruleminer
 
 import de.fhg.iais.nqfpruleminer.Value.Label
 
+import scala.Ordering.Double.IeeeOrdering
+
 case class Aggregation(aggregationOp: AggregationOperator.Value, getHistory: () => List[Double])(implicit ctx: Context) {
   private val init =
     aggregationOp match {

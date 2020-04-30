@@ -494,6 +494,8 @@ all instancres that do not satisfy the condition are skipped.
 "num >= 1.3 && x == \"a\" " 
 ```
 
+Be careful to distinguish nominals and numerics in conditions, e.g., the string `"0"` from `0`. The value  `"0"` is a nominal, the value `0` is a numeric.	
+
 ## Output
 
 Given a configuration file `configuration.conf` with `outputFile = result` as program argument, the Ruleminer will generate two files `configuration_frequency.txt` and `configuration_result.txt`or `configuration_result.json` according to the output format chosen.

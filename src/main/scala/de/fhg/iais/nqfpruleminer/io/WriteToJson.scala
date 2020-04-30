@@ -15,7 +15,7 @@ class WriteToJson(numberOfItems: Int,
                  )(implicit ctx: Context) {
 
   def write(): Unit = {
-    val outputFile = ctx.outputFile + ".json"
+    val outputFile = ctx.outputFile.pathAsString + ".json"
     outputFile.toFile.overwrite("")
     if (kBestSubGroups.isEmpty) {
       outputFile.toFile.append("No best subgroups generated. maybe the configuration file is incorrect.")
@@ -53,7 +53,7 @@ class WriteToJson(numberOfItems: Int,
             kBestSubGroups.reverse.map(
               sg =>
                 Map(
-                  "conditions" -> sg.group.sorted.map(decode).map(_.toString).toJson,
+                  "conditions" -> sg.group.sorted.map(decode).toJson,
                   "quality" -> sg.quality.toJson,
                   "size" -> sg.distr.sum.toJson,
                   "generality" -> sg.generality.toJson,

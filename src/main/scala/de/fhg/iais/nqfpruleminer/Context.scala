@@ -10,6 +10,7 @@ import de.fhg.iais.utils._
 import org.joda.time.DateTime
 import org.joda.time.format.DateTimeFormat
 
+import scala.Ordering.Double.IeeeOrdering
 import scala.jdk.CollectionConverters._
 import scala.util.{Failure, Success, Try}
 
@@ -400,7 +401,7 @@ case class Context(configFile: String) {
                         case Failure(e) => fail(s"Minimum should be an integer value: ${e.getMessage}"); 0
                       }
                     else
-                      0
+                      1
                   Feature(name, DerivedType.COUNT(seqIdPos, positions, minimum, condition, operator == AggregationOperator.exists, period))
                 } else {
                   val name = s"Aggregate(${period.asString})"

@@ -7,6 +7,8 @@ import de.fhg.iais.nqfpruleminer.io.Reader
 import de.fhg.iais.nqfpruleminer.{Coding, Context}
 import de.fhg.iais.utils.progress
 
+import scala.Ordering.Double.IeeeOrdering
+
 object Master {
   def props()(implicit ctx: Context): Props = Props(classOf[Master], ctx)
 
@@ -36,9 +38,9 @@ class Master(implicit ctx: Context) extends Actor with ActorLogging {
   def waitForItemsToBeGenerated(n: Int): Receive = {
     case Worker.Count(table, distr) =>
       table.foreach {
-        case (value, distribution) =>
-          itemFrequencies get value match {
-            case None => itemFrequencies += (value -> distribution)
+        case (key, distribution) =>
+          itemFrequencies get key match {
+            case None => itemFrequencies += (key -> distribution)
             case Some(_distribution) => _distribution.add(distribution)
           }
       }
@@ -102,7 +104,6 @@ class Master(implicit ctx: Context) extends Actor with ActorLogging {
         workers ! Broadcast(Master.GenerateTrees(nqFpTrees, coding))
         context become waitForTreeGenerationTermination(ctx.numberOfWorkers)
       }
-
   }
 
   def waitForTreeGenerationTermination(n: Int)(implicit trees: List[ActorRef], quality: Distribution => Quality): Receive = {
@@ -110,25 +111,25 @@ class Master(implicit ctx: Context) extends Actor with ActorLogging {
       if (n <= 1) {
         log.info(progress("sec needed for tree generation"))
         for (tree <- trees) tree ! NqFpTree.NoMoreInstances(quality)
-        context become receiveDistributions(trees)
+        context become receiveDistributions(trees,0)
       } else {
         context become waitForTreeGenerationTermination(n - 1)
       }
 
   }
 
-  private var subgroupCounter = 0
+//  private var subgroupCounter = 0
 
-  def receiveDistributions(trees: List[ActorRef]): Receive = {
+  def receiveDistributions(trees: List[ActorRef], _subgroupCounter : Int): Receive = {
     case MinQ(minQ) =>
       for (tree <- trees) tree ! MinQ(minQ)
     case NqFpTree.Terminated(tree, numberOfSubgroups) =>
-      subgroupCounter += numberOfSubgroups
+      val subgroupCounter = _subgroupCounter + numberOfSubgroups
       if (trees.lengthCompare(1) <= 0) {
         log.info(progress("sec needed for subgroup generation."))
         context.actorSelection("akka://nqfpminer/user/master/bestsubgroups") ! BestSubGroups.GenOutput(rootDistr, subgroupCounter)
       } else {
-        context become receiveDistributions(trees.filterNot(_ == tree))
+        context become receiveDistributions(trees.filterNot(_ == tree), subgroupCounter)
       }
   }
 }
