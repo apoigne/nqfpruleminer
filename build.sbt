@@ -1,22 +1,17 @@
-import com.typesafe.sbt.SbtNativePackager.autoImport.NativePackagerHelper._
+import com.typesafe.sbt.SbtNativePackager.autoImport.NativePackagerHelper.*
 import com.typesafe.sbt.packager.docker.DockerPlugin.autoImport.dockerBaseImage
-import com.typesafe.sbt.packager.universal.UniversalDeployPlugin
-import sbt.Keys.{mappings, organization, _}
-import sbt._
+import sbt.*
+import sbt.Keys.{mappings, *}
 
 lazy val commonSettings = Seq(
-  version := "0.1",
-  organization := "de.fraunhofer.iais.kd",
-  organizationName := "Fraunhofer IAIS, Knowledge Discovery",
-  organizationHomepage := Some(url("http://www.iais.fraunhofer.de")),
-  scalaVersion := "2.13.1",
-  maintainer := "axel.poigne@iais.fraunhofer.de",
+  version := "1.0",
+  scalaVersion := "3.6.4",
+  maintainer := "axel.poigne@icloud.com",
   libraryDependencies ++= Dependencies.allDependencies,
   scalacOptions := Seq(
     "-deprecation",
     "-unchecked",
-    "-language:_",
-    "-Xlint"
+    "-Xlint","-rewrite"
   ),
   javacOptions := Seq(
     "-Xlint:unchecked",
@@ -26,18 +21,17 @@ lazy val commonSettings = Seq(
 
 lazy val ruleminer =
   (project in file("."))
-    .enablePlugins(JavaAppPackaging, UniversalDeployPlugin, DockerPlugin, WindowsPlugin)
+    .enablePlugins(JavaAppPackaging, UniversalPlugin, DockerPlugin, WindowsPlugin)
     .settings(
       commonSettings,
-      name := "ruleminer",
+      name := "nqfpruleminer",
       description := "Subgroup Mining with (not quite) FP-growth",
-      mainClass := Some("ruleminer"),
-      version := "0.6",
+      version := "1.0",
 
-      mappings in Universal += {packageBin in Compile map { p => p -> "lib/ruleminer.jar" }}.value,
-      mappings in Universal ++= directory("docs"),
-      mappings in Universal ++= directory("examples"),
-      mappings in Universal += file("Readme.md") -> "Readme.md",
+      Universal / mappings += (Compile / packageBin).value -> "lib/nqfpruleminer.jar",
+      Universal / mappings ++= directory("docs"),
+      Universal / mappings ++= directory("examples"),
+      Universal / mappings += file("Readme.md") -> "Readme.md",
       crossPaths := false,
 
       dockerBaseImage := "openjdk:latest",
