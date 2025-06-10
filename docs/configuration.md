@@ -8,7 +8,7 @@ Configuration files are specified usíng the [HOCON format](https://github.com/l
 
 Subgroup discovery is the task of finding subgroups of a population which exhibit both distributional unusualness and high generality at the same time. A subgroup consists a set of *items* of the form  `<attribute> = <value>`, where attribute is the name of a feature and the value being admissable according to a type restriction. 
 
-Note: The greater the number of items is, the more computationally costly subgroup discovery is. Several strategies are used to reduce the number of items. For instance, using numerical values induces a potetially infinite number of items. Binning is used to reduce to a finite number. Reduction ofg the number of instances can also be achieved by using conditions. Given, for instance, features `amount`and `currency`one might impose the condition "amount > 10000 && currency  = $" for filtering or even further, use a (derived) compound feature (see below) "amount x currency" to reduce the number of items. For the latter, additionally the condition for the featurs `amount` and `currrency` should be set to `false`since otherwise using the compound feature wouöld boost the number of items rather than to rediuce them. The facilitities offered by conditions and derived features should be used wisely to balance the aim of finding interesting subgroups and the computational costs of doing so.
+Note: The greater the number of items is, the more computationally costly subgroup discovery is. Several strategies are used to reduce the number of items. For instance, using numerical values induces a potentially infinite number of items. Binning is used to reduce to a finite number. Reduction of the number of instances can also be achieved by using conditions. Given, for instance, features `amount`and `currency` one might impose the condition "amount > 10000 && currency  = $" for filtering or even further, use a (derived) compound feature (see below) "amount x currency" to reduce the number of items. For the latter, additionally the condition for the features `amount` and `currrency` should be set to `false` since otherwise using the compound feature would boost the number of items rather than to reduce them. The facilitities offered by conditions and derived features should be used wisely to balance the aim of finding interesting subgroups and the computational costs of doing so.
 
 ### Input data
 
@@ -72,7 +72,7 @@ statisticsOnly = true
 is set to true, the frequency of features is computed only. 
 
 ### Subgroup Mining Parameters
-The following parameters determine the behaviour of the subgroup mining algorithm. The nomenclature follows: Grosskreutz, H., Rüping, S., & Wrobel, S. (2008). Tight optimistic estimates for fast subgroup discovery. Ecml/Pkdd (1), 5211, 440–456. 
+The following parameters determine the behaviour of the subgroup mining algorithm. The nomenclature follows: Grosskreutz, H., Rüping, S., Wrobel, S. (2008). Tight optimistic estimates for fast subgroup discovery. Ecml/Pkdd (1), 5211, 440–456. 
 
 ```json
 numberOfBestSubgroups = <integer>      // Default: 15
@@ -87,21 +87,27 @@ minProbability =<double>               // Default: 0.0
 ```
 
 - `numberOfBestSubgroups` - maximal length of the subgroups
-- `maxNumberOfItems` - restricts the number of items. Order criterium is frequeny.
-- `computeClosureOfSubgroups ` - if true, the closure of the k best subgroups are computed.
+
+- `maxNumberOfItems` - restricts the number of items. Order criterium is frequency.
+
+- `computeClosureOfSubgroups ` - if true, the closure of the k best subgroups is computed.
+
 - `refineSubgroups` - if true, the refinements of subgroups are computed.
+
 - `qualityfunction` - The quality function used. Supported quality functions are presently
 	
 	- Type 2	
 		- Piatetsky (Default):  	$n (p - p0)$
 		- Binomial:   $\sqrt{n} (p - p0)$
 	- Type N 
-		- Split:			$n􏰄 \sum_i(p_i −p_{0_i})^2$
-		- Pearson:    $n􏰄 \sum_i(p_i−p_{0_i})^2$
-	- Gini:           $\frac{n}{N-n} 􏰄 \sum_i(p_i − p_{0_i})^2$
+		- Split:			$n \sum_i(p_i −p_{0_i})^2$
+		- Pearson:    $n \sum_i(p_i−p_{0_i})^2$
+	- Gini:           $\frac{n}{N-n} \sum_i(p_i − p_{0_i})^2$
 	
-	where \\(n\\) is the size of the subgroup, \\(N\\) the size of the database,  \\(p_0\\) is the class distribution of the database and \\(p\\) that of the respective subgroup. Type 2 implies that there are only two labels, one being the target label.
+	where $n$ is the size of the subgroup, $N$ the size of the database,  $p_0$ is the class distribution of the database and $p$ that of the respective subgroup. Type 2 implies that there are only two labels, one being the target label.
+	
 - `minimalQuality` - Required minimal quality
+
 - `minGenerality` - Generality is the number of occurrences of a subgroup divided by the number of instances
 
 ### Concurrent Execution
@@ -116,7 +122,7 @@ parallelExecution {
 ```
 
 - `numberOfWorkers` determines the number of processes used for data preparation.
-- `delimitersForParallelExecutionOfTrees` is used for parallel subgroup mining. Delimiters are percentages, i.e. for all delimiters \\(d\\), \\(0 \lt d \lt 100\\). The tree constructed from all instances is split into several subtrees (with the hope) to improve computation time. Note that the split may substantially increase memory size and the speedup is not necessarily as expected, the reason being that subgroup mining is by no means data parallel.  
+- `delimitersForParallelExecutionOfTrees` is used for parallel subgroup mining. Delimiters are percentages, i.e. for all delimiters $d$, $0\lt d\lt100$. The tree constructed from all instances is split into several subtrees (with the hope) to improve computation time. Note that the split may substantially increase memory size and the speedup is not necessarily as expected, the reason being that subgroup mining is by no means data parallel. 
 The implementation so far runs on a single computer. It might be useful in cases but its benefit may become visible if run on a cluster (not yet implemented).
 
 ### Features
@@ -130,7 +136,7 @@ features = [ <feature> ]
  A feature consists of
 
 - an *attribute*, i.e. a string refering to a column of the input data. The string must only use letters a - z, A - Z, digits 0 - 9, and the character '_'. An attribute must start with a letter.
-- a type - supported types are `Nominal`and `Numeric`. Values of type `Nominal`are  strings, values of type `Numeric` are numbers (integers or Doubles),
+- a type - supported types are `Nominal` and `Numeric`. Values of type `Nominal` are  strings, values of type `Numeric` are numbers (integers or d-oubles),
 - If the type of an feature is `Numeric`, a binning method is required. The intervals generated may be overlapping or not. The binning methods supported are
     - interval binning
     - equal width binning

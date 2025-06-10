@@ -1,17 +1,17 @@
 package nqfpruleminer
 
-import better.files._
+import better.files.*
 import com.opencsv.CSVParser
 import com.typesafe.config.{Config, ConfigFactory}
-import Expression.TRUE
-import Item.Position
-import io.Provider
+import nqfpruleminer.Expression.TRUE
+import nqfpruleminer.Item.Position
+import nqfpruleminer.io.Provider
+import nqfpruleminer.utils.{fail, tryFail, tryOption, tryWithDefault}
 import org.joda.time.DateTime
 import org.joda.time.format.DateTimeFormat
-import utils.{fail, tryFail, tryOption, tryWithDefault}
 
 import scala.Ordering.Double.IeeeOrdering
-import scala.jdk.CollectionConverters._
+import scala.jdk.CollectionConverters.*
 import scala.util.{Failure, Success, Try}
 
 object AggregationOperator extends Enumeration {
@@ -371,16 +371,16 @@ case class Context(configFile: String) {
               }
           val condition = (env: Vector[Value]) => conditionExpr.updatePosition(this.attributeToPosition).eval(env)
           val periods = tryFail(config.getConfigList("periods").asScala.toList)
+          if (periods.isEmpty)
+            fail(s"At least one period must be defined for an aggregator.")
           periods
             .map {
               conf =>
+                val offset = tryOption(conf.getString("offset"))
+                val length = tryFail(conf.getString("length"))
                 if (timeframe.isEmpty) {
-                  val offset = tryOption(conf.getString("offset"))
-                  val length = tryFail(conf.getString("length"))
-                    DiscretePeriod(offset, length)
+                  DiscretePeriod(offset, length)
                 } else {
-                  val offset = tryOption(conf.getString("offset"))
-                  val length = tryFail(conf.getString("length"))
                   TimePeriod(offset, length)
                 }
             }

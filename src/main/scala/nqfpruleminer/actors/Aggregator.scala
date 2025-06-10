@@ -1,16 +1,15 @@
 package nqfpruleminer.actors
 
-import org.apache.pekko.actor.{Actor, ActorRef, Props}
-import org.apache.pekko
-import pekko.actor.{Actor, ActorLogging, ActorRef, Props}
-import pekko.routing.Broadcast
-import pekko.util.Timeout
-import nqfpruleminer.{Context, DataFrame, History, TimedDataFrame}
 import nqfpruleminer.io.Reader
+import nqfpruleminer.{Context, DataFrame, History, TimedDataFrame}
+import org.apache.pekko
+import org.apache.pekko.actor.{Actor, ActorLogging, ActorRef, Props}
+import org.apache.pekko.routing.Broadcast
+import org.apache.pekko.util.Timeout
 
 import scala.concurrent.ExecutionContextExecutor
-import scala.concurrent.duration._
-
+import scala.concurrent.duration.*
+    
 object Aggregator {
   def props(listener: ActorRef)(implicit ctx: Context): Props = Props(classOf[Aggregator], listener, ctx)
 }

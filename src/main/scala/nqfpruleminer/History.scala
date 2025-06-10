@@ -1,9 +1,9 @@
 package nqfpruleminer
 
-import History.Elem
-import Item.Position
+import nqfpruleminer.History.Elem
+import nqfpruleminer.Item.Position
+import nqfpruleminer.utils.fail
 import org.joda.time.DateTime
-import utils.fail
 
 object History {
   case class Elem(dateTime: Option[DateTime], value: GroupBy)
@@ -25,7 +25,7 @@ object History {
 }
 
 trait History {
-  import History._
+  import History.*
 
   val aggr: AggregatorType
   val position: Position

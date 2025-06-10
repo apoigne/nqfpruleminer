@@ -1,11 +1,11 @@
 package nqfpruleminer.io
 
-import java.io.FileReader
-
 import better.files.*
 import com.opencsv.CSVReader
 import nqfpruleminer.utils.fail
 import nqfpruleminer.{Context, Feature}
+
+import java.io.FileReader
 
 object Provider {
   sealed trait Data
@@ -65,7 +65,7 @@ class CsvProvider(data: Provider.Csv)(implicit ctx: Context) extends Provider {
 }
 
 class MySqlProvider(data: Provider.MySql)(implicit ctx: Context) extends Provider {
-  import scalikejdbc._
+  import scalikejdbc.*
 
 //  Class.forName("com.mysql.jdbc.Driver")
   ConnectionPool.singleton(s"jdbc:mysql://${data.host}:${data.port}/${data.database}", data.user, data.password)

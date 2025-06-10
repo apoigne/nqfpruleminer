@@ -1,12 +1,11 @@
 package nqfpruleminer.actors
 
-import org.apache.pekko.routing.Broadcast
-import BestSubGroups.MinQ
-import nqfpruleminer.{Coding, Context}
+import nqfpruleminer.actors.BestSubGroups.MinQ
 import nqfpruleminer.io.{Provider, Reader}
 import nqfpruleminer.utils.progress
+import nqfpruleminer.{Coding, Context}
 import org.apache.pekko.actor.{Actor, ActorLogging, ActorRef, Props}
-import org.apache.pekko.routing.RoundRobinPool
+import org.apache.pekko.routing.{Broadcast, RoundRobinPool}
 
 import scala.Ordering.Double.IeeeOrdering
 
@@ -19,7 +18,7 @@ object Master {
 
 class Master(implicit ctx: Context) extends Actor with ActorLogging {
 
-  import nqfpruleminer._
+  import nqfpruleminer.*
 
   log.info(s"Started.")
 

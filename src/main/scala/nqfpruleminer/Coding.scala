@@ -1,6 +1,6 @@
 package nqfpruleminer
 
-import Item.Position
+import nqfpruleminer.Item.Position
 
 object Coding {
   type DecodingTable = IndexedSeq[Item]
@@ -8,7 +8,7 @@ object Coding {
 }
 
 class Coding(item2frequency: Map[Item, Distribution])(implicit ctx: Context) {
-  import Coding._
+  import Coding.*
 
   private def binning(item2frequency: Map[Item, Distribution])(implicit position: Position): List[Bin] = {
     val tbl = item2frequency.flatMap { case (item, distribution) => item.getLabelledDouble.map((_, distribution)) }

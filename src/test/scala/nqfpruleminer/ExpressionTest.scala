@@ -1,7 +1,7 @@
 package nqfpruleminer
 
-import nqfpruleminer.{Context, Nominal}
 import nqfpruleminer.Expression.*
+import nqfpruleminer.{Context, Nominal}
 import org.scalatest.funsuite.AnyFunSuite
 
 class ExpressionTest extends AnyFunSuite {

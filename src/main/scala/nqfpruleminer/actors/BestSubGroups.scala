@@ -1,14 +1,14 @@
 package nqfpruleminer.actors
 
-import org.apache.pekko
-import pekko.actor.{Actor, ActorLogging, Props}
-import pekko.util.Timeout
-import nqfpruleminer.{Coding, Context, Distribution}
 import nqfpruleminer.io.{WriteToJson, WriteToText}
 import nqfpruleminer.utils.fail
+import nqfpruleminer.{Coding, Context, Distribution}
+import org.apache.pekko
+import org.apache.pekko.actor.{Actor, ActorLogging, Props}
+import org.apache.pekko.util.Timeout
 
 import scala.concurrent.ExecutionContextExecutor
-import scala.concurrent.duration._
+import scala.concurrent.duration.*
 import scala.util.{Failure, Success}
 
 object BestSubGroups {
@@ -26,7 +26,7 @@ object BestSubGroups {
 class BestSubGroups(numberOfItems: Int, coding: Coding)(implicit ctx: Context) extends Actor with ActorLogging {
   log.info("Started")
 
-  import BestSubGroups._
+  import BestSubGroups.*
 
   private var _minQ = ctx.minimalQuality
   private val refineSubgroups = ctx.refineSubgroups

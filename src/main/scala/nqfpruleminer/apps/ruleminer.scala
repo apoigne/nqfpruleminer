@@ -1,16 +1,15 @@
-package nqfpruleminer
+package nqfpruleminer.apps
 
-import com.sun.source.tree.ArrayAccessTree
-import org.apache.pekko.actor.ActorSystem
 import nqfpruleminer.Context
 import nqfpruleminer.actors.Master
 import nqfpruleminer.utils.{fail, progress}
+import org.apache.pekko.actor.ActorSystem
 
-object Ruleminer {
+object ruleminer {
   def main(args:Array[String]): Unit = {
     val configFile: String = args(0)
 
-    val system = ActorSystem("nqfpminer")
+    val system = ActorSystem("nqfruleminer")
 
     implicit val ctx: Context = Context(configFile)
 

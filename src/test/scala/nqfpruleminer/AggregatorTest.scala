@@ -1,8 +1,8 @@
 package nqfpruleminer
 
 import nqfpruleminer.actors.Aggregator
-import nqfpruleminer.{Aggregated, AggregationOperator, Compound, Context, Counted, DataFrame, GroupBy, Nominal, Valued, io}
 import nqfpruleminer.io.{Provider, Reader}
+import nqfpruleminer.{Aggregated, AggregationOperator, Compound, Context, Counted, DataFrame, GroupBy, Nominal, Valued, io}
 import org.apache.pekko.actor.ActorSystem
 import org.apache.pekko.testkit.{ImplicitSender, TestKitBase, TestProbe}
 import org.apache.pekko.util.Timeout

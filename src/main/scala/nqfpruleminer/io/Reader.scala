@@ -1,10 +1,10 @@
 package nqfpruleminer.io
 
-import nqfpruleminer._
+import nqfpruleminer.*
+import nqfpruleminer.utils.fail
 import org.apache.pekko.actor.ActorRef
 import org.apache.pekko.routing.Broadcast
 import org.joda.time.DateTime
-import utils.fail
 
 import scala.util.{Failure, Success, Try}
 

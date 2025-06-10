@@ -1,11 +1,11 @@
 package nqfpruleminer.io
 
-import better.files._
+import better.files.*
 import nqfpruleminer.actors.BestSubGroups.SubGroup
 import nqfpruleminer.utils.binomialSum
 import nqfpruleminer.{Context, Distribution}
-import spray.json.DefaultJsonProtocol._
-import spray.json._
+import spray.json.*
+import spray.json.DefaultJsonProtocol.*
 
 class WriteToJson(numberOfItems: Int,
                   kBestSubGroups: List[SubGroup],

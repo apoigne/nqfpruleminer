@@ -1,6 +1,6 @@
 package nqfpruleminer
 
-import Value.Label
+import nqfpruleminer.Value.Label
 
 class Distribution(val numberOfTargetGroups: Int) {
   private val distr = Array.fill(numberOfTargetGroups: Int)(0: Int)

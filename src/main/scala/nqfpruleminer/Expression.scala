@@ -1,11 +1,11 @@
 package nqfpruleminer
 
-import Item.Position
-import utils.fail
+import nqfpruleminer.Item.Position
+import nqfpruleminer.utils.fail
 
 object Expression {
-  import fastparse._
-  import MultiLineWhitespace._
+  import fastparse.*
+  import MultiLineWhitespace.*
 
   trait Literal {
     def attributes: Set[String]

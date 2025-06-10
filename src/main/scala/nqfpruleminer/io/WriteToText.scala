@@ -1,6 +1,6 @@
 package nqfpruleminer.io
 
-import better.files._
+import better.files.*
 import nqfpruleminer.actors.BestSubGroups.SubGroup
 import nqfpruleminer.utils.binomialSum
 import nqfpruleminer.{Context, Distribution}

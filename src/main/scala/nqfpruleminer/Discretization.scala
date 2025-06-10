@@ -1,11 +1,11 @@
 package nqfpruleminer
 
-import Item.Position
-import Value.Label
-import com.typesafe.scalalogging._
-import utils.fail
+import com.typesafe.scalalogging.*
+import nqfpruleminer.Item.Position
+import nqfpruleminer.Value.Label
+import nqfpruleminer.utils.fail
 
-import Ordering.Double.IeeeOrdering
+import scala.math.Ordering.Double.IeeeOrdering
 
 object Discretization {
   def delimiters2bins(delimiters: List[Double], overlapping: Boolean = false): List[Bin] = {

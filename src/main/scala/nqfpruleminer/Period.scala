@@ -1,9 +1,10 @@
 package nqfpruleminer
 
-import utils.fail
+import nqfpruleminer.utils.fail
 
 object Period {
   def apply(definition: String): Int = {
+    assert(definition.length > 1, s"Period definition '$definition' is too short. It should be at least 2 characters long.")
     val value = definition.take(definition.length - 1).toInt
     definition.last match {
       case 'w' => value * 604800000
@@ -12,7 +13,7 @@ object Period {
       case 'm' => value * 60000
       case 's' => value * 1000
       case 'u' => value
-//      case 'n' => value
+      case 'n' => value
       case x => fail(s"Format '$x' is not supported for timeframes."); 0
     }
   }

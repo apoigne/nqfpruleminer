@@ -1,6 +1,6 @@
 package nqfpruleminer
 
-import Value.Label
+import nqfpruleminer.Value.Label
 
 import scala.Ordering.Double.IeeeOrdering
 

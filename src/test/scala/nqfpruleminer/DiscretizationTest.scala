@@ -1,8 +1,8 @@
 package nqfpruleminer
 
-import nqfpruleminer.{Bin, Context, Distribution, Entropy, EqualFrequency, EqualWidth, Intervals}
 import nqfpruleminer.Item.Position
 import nqfpruleminer.Value.Label
+import nqfpruleminer.{Bin, Context, Distribution, Entropy, EqualFrequency, EqualWidth, Intervals}
 import org.scalatest.funsuite.AnyFunSuite
 
 class DiscretizationTest extends AnyFunSuite {

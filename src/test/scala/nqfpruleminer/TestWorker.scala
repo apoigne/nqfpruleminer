@@ -1,8 +1,8 @@
 package nqfpruleminer
 
-import nqfpruleminer.{Context, Nominal, Valued}
 import nqfpruleminer.actors.Worker
 import nqfpruleminer.io.{Provider, Reader}
+import nqfpruleminer.{Context, Nominal, Valued}
 import org.apache.pekko.actor.ActorSystem
 import org.apache.pekko.routing.RoundRobinPool
 import org.apache.pekko.testkit.{ImplicitSender, TestKitBase, TestProbe}

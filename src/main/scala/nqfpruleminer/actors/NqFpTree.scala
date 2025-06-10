@@ -16,7 +16,7 @@ object NqFpTree {
 }
 
 class NqFpTree(lower: Int, upper: Int, numberOfItems: Int, lengthOfSubgroups: Int, master: ActorRef, bestSubgroups: ActorRef)(implicit ctx: Context) extends Actor with ActorLogging {
-  import NqFpTree._
+  import NqFpTree.*
 
   log.info("Started")
   private var minQ = ctx.minimalQuality

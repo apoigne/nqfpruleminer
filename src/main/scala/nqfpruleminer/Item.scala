@@ -1,11 +1,11 @@
 package nqfpruleminer
 
-import Expression.{BoolExpr, TRUE}
-import Item.Position
-import Value.Label
+import nqfpruleminer.Expression.{BoolExpr, TRUE}
+import nqfpruleminer.Item.Position
+import nqfpruleminer.Value.Label
+import nqfpruleminer.utils.fail
 import org.joda.time.DateTime
 import org.joda.time.format.DateTimeFormatter
-import utils.fail
 
 import scala.util.{Failure, Success, Try}
 
@@ -229,9 +229,10 @@ case class Aggregated(op: AggregationOperator.Value, valuePos: Position, result:
                      (implicit ctx: Context) extends Item {
   val getLabelledDouble: Option[(Double, Label)] = None
   override def toString: String =
-    s"${ctx.allFeatures(position).name}.$op(${ctx.allFeatures(valuePos).name}) == $result"
+    val allFeaturePositionName = ctx.allFeatures(position).name
+    val allFeatureValuePosName = ctx.allFeatures(valuePos).name
+    s"$allFeaturePositionName.$op($allFeatureValuePosName) == $result"
 }
-
 case class Existed(item: Item, position: Position = -1)(implicit ctx: Context) extends Item {
   val getLabelledDouble: Option[(Double, Label)] = None
   override def toString: String =
